@@ -1,0 +1,14 @@
+/* Small usability corrections after the work-chat experiment. */
+.attention-strip{display:none!important}
+.notebook-titlebar{margin-bottom:12px!important}
+
+.notebook-row{display:grid!important;grid-template-columns:34px minmax(0,1fr);align-items:stretch}
+.row-number{display:flex!important;align-items:flex-start;justify-content:flex-start;padding:14px 0 0 3px;color:#555f6b;font-size:10px;font-weight:700;letter-spacing:.04em;line-height:1;user-select:none}
+.notebook-row:hover .row-number,.active-row .row-number{color:#82909f}
+.active-row .row-number{color:#74dba2}
+.chat-waiting-wrap .row-number{color:#71634a}
+
+@media(max-width:760px){
+  .notebook-row{grid-template-columns:27px minmax(0,1fr)}
+  .row-number{padding-top:12px;font-size:9px}
+}
