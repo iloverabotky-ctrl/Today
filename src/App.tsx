@@ -1,63 +1,554 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { Place, Store, Task, TaskState } from './types';
-import { demo, STORAGE_KEY } from './data';
+import { useEffect, useMemo, useState } from 'react';
+import type { ColumnId, Store, Task } from './types';
+import { defaultColumnTitles, demo, STORAGE_KEY } from './data';
 
-const placeLabels:Record<Place,string>={pool:'Пул',week:'Неделя',today:'Сегодня',now:'Сейчас',done:'Готово'};
-const stateLabels:Record<Exclude<TaskState,null>,string>={waiting:'Жду',delegated:'Делегировано',blocked:'Блок'};
-const blankTask=(title:string,place:Place,order:number):Task=>({id:crypto.randomUUID(),title,place,state:null,stoppedAt:'',nextStep:'',waitingFor:'',result:'',attentionAt:null,order,createdAt:Date.now(),completedAt:null});
-const load=():Store=>{try{const v=localStorage.getItem(STORAGE_KEY);return v?JSON.parse(v):demo}catch{return demo}};
+const columnIds: ColumnId[] = ['today', 'week', 'month', 'delegated', 'done'];
 
-function Editable({value,placeholder,onSave,className=''}:{value:string;placeholder:string;onSave:(v:string)=>void;className?:string}){
-  const [editing,setEditing]=useState(false),[draft,setDraft]=useState(value);
-  useEffect(()=>setDraft(value),[value]);
-  const save=()=>{onSave(draft.trim());setEditing(false)};
-  if(editing)return <textarea autoFocus className={`inline-input ${className}`} value={draft} onChange={e=>setDraft(e.target.value)} onBlur={save} onKeyDown={e=>{if(e.key==='Escape'){setDraft(value);setEditing(false)}if(e.key==='Enter'&&(!e.shiftKey||e.metaKey||e.ctrlKey)){e.preventDefault();save()}}}/>;
-  return <button className={`editable ${className} ${!value?'empty':''}`} onClick={()=>setEditing(true)} title="Нажмите, чтобы изменить">{value||placeholder}</button>;
+type Page = 'notebook' | 'board';
+
+const newId = () => crypto.randomUUID();
+
+const loadStore = (): Store => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return demo;
+    const parsed = JSON.parse(raw) as Store;
+    return {
+      tasks: Array.isArray(parsed.tasks) ? parsed.tasks : demo.tasks,
+      columnTitles: { ...defaultColumnTitles, ...(parsed.columnTitles || {}) },
+    };
+  } catch {
+    return demo;
+  }
+};
+
+const nextOrder = (tasks: Task[], columnId: ColumnId) =>
+  Math.max(-1, ...tasks.filter((task) => task.columnId === columnId).map((task) => task.boardOrder)) + 1;
+
+const nextNotebookOrder = (tasks: Task[]) =>
+  Math.max(-1, ...tasks.filter((task) => task.inNotebook).map((task) => task.notebookOrder)) + 1;
+
+const ageLabel = (timestamp?: number) => {
+  if (!timestamp) return 'без записей';
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
+  if (minutes < 1) return 'сейчас';
+  if (minutes < 60) return `${minutes} мин`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ч`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'вчера' : `${days} дн`;
+};
+
+function App() {
+  const [store, setStore] = useState<Store>(loadStore);
+  const [page, setPage] = useState<Page>('notebook');
+  const [dragBoardId, setDragBoardId] = useState<string | null>(null);
+  const [dragNotebookId, setDragNotebookId] = useState<string | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  }, [store]);
+
+  useEffect(() => {
+    document.querySelectorAll<HTMLElement>('.timeline-scroll').forEach((node) => {
+      node.scrollLeft = node.scrollWidth;
+    });
+  }, [store.tasks]);
+
+  const notebookTasks = useMemo(
+    () =>
+      store.tasks
+        .filter((task) => task.inNotebook && task.columnId === 'today')
+        .sort((a, b) => a.notebookOrder - b.notebookOrder),
+    [store.tasks],
+  );
+
+  const updateTask = (id: string, patch: Partial<Task>) => {
+    setStore((current) => ({
+      ...current,
+      tasks: current.tasks.map((task) => (task.id === id ? { ...task, ...patch } : task)),
+    }));
+  };
+
+  const createTask = (title: string, columnId: ColumnId, inNotebook = false) => {
+    const clean = title.trim();
+    if (!clean) return;
+    setStore((current) => ({
+      ...current,
+      tasks: [
+        ...current.tasks,
+        {
+          id: newId(),
+          title: clean,
+          columnId,
+          boardOrder: nextOrder(current.tasks, columnId),
+          inNotebook,
+          notebookOrder: inNotebook ? nextNotebookOrder(current.tasks) : 0,
+          steps: [],
+          createdAt: Date.now(),
+          completedAt: columnId === 'done' ? Date.now() : null,
+        },
+      ],
+    }));
+  };
+
+  const moveBoardTask = (taskId: string, targetColumn: ColumnId, beforeId?: string) => {
+    setStore((current) => {
+      const moving = current.tasks.find((task) => task.id === taskId);
+      if (!moving) return current;
+
+      const targetTasks = current.tasks
+        .filter((task) => task.columnId === targetColumn && task.id !== taskId)
+        .sort((a, b) => a.boardOrder - b.boardOrder);
+
+      const insertAt = beforeId
+        ? Math.max(0, targetTasks.findIndex((task) => task.id === beforeId))
+        : targetTasks.length;
+
+      const moved: Task = {
+        ...moving,
+        columnId: targetColumn,
+        inNotebook: targetColumn === 'today' ? moving.inNotebook : false,
+        completedAt: targetColumn === 'done' ? Date.now() : null,
+      };
+
+      targetTasks.splice(insertAt, 0, moved);
+      const targetOrders = new Map(targetTasks.map((task, index) => [task.id, index]));
+
+      return {
+        ...current,
+        tasks: current.tasks.map((task) => {
+          if (task.id === taskId) {
+            return { ...moved, boardOrder: targetOrders.get(task.id) ?? 0 };
+          }
+          const order = targetOrders.get(task.id);
+          return order === undefined ? task : { ...task, boardOrder: order };
+        }),
+      };
+    });
+    setDragBoardId(null);
+  };
+
+  const addToNotebook = (taskId: string) => {
+    setStore((current) => ({
+      ...current,
+      tasks: current.tasks.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              columnId: 'today',
+              inNotebook: true,
+              notebookOrder: nextNotebookOrder(current.tasks),
+              boardOrder: nextOrder(current.tasks, 'today'),
+              completedAt: null,
+            }
+          : task,
+      ),
+    }));
+    setPage('notebook');
+  };
+
+  const addStep = (taskId: string, text: string) => {
+    const clean = text.trim();
+    if (!clean) return;
+    setStore((current) => ({
+      ...current,
+      tasks: current.tasks.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              steps: [...task.steps, { id: newId(), text: clean, createdAt: Date.now() }],
+            }
+          : task,
+      ),
+    }));
+  };
+
+  const completeTask = (taskId: string) => {
+    setStore((current) => {
+      const task = current.tasks.find((item) => item.id === taskId);
+      if (!task) return current;
+      return {
+        ...current,
+        tasks: current.tasks.map((item) =>
+          item.id === taskId
+            ? {
+                ...item,
+                columnId: 'done',
+                inNotebook: false,
+                boardOrder: nextOrder(current.tasks, 'done'),
+                completedAt: Date.now(),
+              }
+            : item,
+        ),
+      };
+    });
+  };
+
+  const reorderNotebook = (taskId: string, beforeId?: string) => {
+    setStore((current) => {
+      const notebook = current.tasks
+        .filter((task) => task.inNotebook && task.columnId === 'today' && task.id !== taskId)
+        .sort((a, b) => a.notebookOrder - b.notebookOrder);
+      const moving = current.tasks.find((task) => task.id === taskId);
+      if (!moving) return current;
+      const insertAt = beforeId
+        ? Math.max(0, notebook.findIndex((task) => task.id === beforeId))
+        : notebook.length;
+      notebook.splice(insertAt, 0, moving);
+      const orders = new Map(notebook.map((task, index) => [task.id, index]));
+      return {
+        ...current,
+        tasks: current.tasks.map((task) => {
+          const order = orders.get(task.id);
+          return order === undefined ? task : { ...task, notebookOrder: order };
+        }),
+      };
+    });
+    setDragNotebookId(null);
+  };
+
+  const deleteTask = (taskId: string) => {
+    setStore((current) => ({ ...current, tasks: current.tasks.filter((task) => task.id !== taskId) }));
+  };
+
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">T</span>
+          <strong>TODAY</strong>
+        </div>
+        <nav className="page-switch" aria-label="Разделы">
+          <button className={page === 'notebook' ? 'active' : ''} onClick={() => setPage('notebook')}>
+            Рабочая тетрадь <span>{notebookTasks.length}</span>
+          </button>
+          <button className={page === 'board' ? 'active' : ''} onClick={() => setPage('board')}>
+            Доска
+          </button>
+        </nav>
+        <div className="save-state"><i /> сохранено</div>
+      </header>
+
+      {page === 'notebook' ? (
+        <NotebookPage
+          tasks={notebookTasks}
+          dragId={dragNotebookId}
+          setDragId={setDragNotebookId}
+          createTask={(title) => createTask(title, 'today', true)}
+          updateTask={updateTask}
+          addStep={addStep}
+          completeTask={completeTask}
+          reorderNotebook={reorderNotebook}
+        />
+      ) : (
+        <BoardPage
+          store={store}
+          dragId={dragBoardId}
+          setDragId={setDragBoardId}
+          createTask={createTask}
+          moveTask={moveBoardTask}
+          addToNotebook={addToNotebook}
+          completeTask={completeTask}
+          deleteTask={deleteTask}
+          renameColumn={(columnId, title) =>
+            setStore((current) => ({
+              ...current,
+              columnTitles: { ...current.columnTitles, [columnId]: title || defaultColumnTitles[columnId] },
+            }))
+          }
+        />
+      )}
+    </div>
+  );
 }
 
-function App(){
-  const [store,setStore]=useState<Store>(load),[view,setView]=useState<Exclude<Place,'now'>>('today');
-  const [newOpen,setNewOpen]=useState(false),[brain,setBrain]=useState(''),[toast,setToast]=useState('');
-  const [deleted,setDeleted]=useState<Task|null>(null),[switchTo,setSwitchTo]=useState<string|null>(null),[showNext,setShowNext]=useState(false);
-  const [dragId,setDragId]=useState<string|null>(null); const toastTimer=useRef<number | undefined>(undefined);
-  useEffect(()=>localStorage.setItem(STORAGE_KEY,JSON.stringify(store)),[store]);
-  useEffect(()=>{const key=(e:KeyboardEvent)=>{const t=e.target as HTMLElement;if(e.key.toLowerCase()==='n'&&!['INPUT','TEXTAREA'].includes(t.tagName)){e.preventDefault();setNewOpen(true)}};addEventListener('keydown',key);return()=>removeEventListener('keydown',key)},[]);
-  const notify=(s:string)=>{setToast(s);clearTimeout(toastTimer.current);toastTimer.current=setTimeout(()=>setToast(''),2600)};
-  const tasks=store.tasks; const current=tasks.find(t=>t.place==='now');
-  const update=(id:string,patch:Partial<Task>)=>setStore(s=>({tasks:s.tasks.map(t=>t.id===id?{...t,...patch}:t)}));
-  const move=(id:string,place:Place)=>update(id,{place,state:place==='done'?null:tasks.find(t=>t.id===id)?.state,completedAt:place==='done'?Date.now():null,order:Math.max(0,...tasks.filter(t=>t.place===place).map(t=>t.order))+1});
-  const requestStart=(id:string)=>current&&current.id!==id?setSwitchTo(id):start(id);
-  const start=(id:string,context?:Partial<Task>)=>{setStore(s=>({tasks:s.tasks.map(t=>t.id===id?{...t,place:'now',state:null}:t.place==='now'?{...t,...context,place:'today'}:t)}));setSwitchTo(null);setShowNext(false);setView('today')};
-  const complete=(id:string)=>{const was=current?.id===id;move(id,'done');if(was)setShowNext(true)};
-  const setState=(id:string,state:Exclude<TaskState,null>)=>{update(id,{state,place:'today'});if(current?.id===id)setShowNext(true)};
-  const add=(title:string,place:Place)=>{if(!title.trim())return;const task=blankTask(title.trim(),place,Math.max(0,...tasks.map(t=>t.order))+1);setStore(s=>({tasks:[...s.tasks.map(t=>place==='now'&&t.place==='now'?{...t,place:'today' as Place}:t),task]}));setNewOpen(false);if(place==='now')setView('today');notify(place==='pool'?'Задача сохранена в Пуле':'Задача создана')};
-  const remove=(task:Task)=>{setDeleted(task);setStore(s=>({tasks:s.tasks.filter(t=>t.id!==task.id)}));notify('Задача удалена')};
-  const available=tasks.filter(t=>t.place==='today'&&!t.state).sort((a,b)=>a.order-b.order);
-  const passive=tasks.filter(t=>t.place==='today'&&t.state).sort((a,b)=>a.order-b.order);
-  const counts=useMemo(()=>({today:tasks.filter(t=>t.place==='today'||t.place==='now').length,week:tasks.filter(t=>t.place==='week').length,pool:tasks.filter(t=>t.place==='pool').length,done:tasks.filter(t=>t.place==='done').length}),[tasks]);
-  const drop=(target:Place,before?:Task)=>{if(!dragId)return;const siblings=tasks.filter(t=>t.place===target&&t.id!==dragId).sort((a,b)=>a.order-b.order);const idx=before?siblings.findIndex(t=>t.id===before.id):siblings.length;siblings.splice(idx,0,tasks.find(t=>t.id===dragId)!);setStore(s=>({tasks:s.tasks.map(t=>{const i=siblings.findIndex(x=>x.id===t.id);return i>=0?{...t,place:target,order:i}:t})}));setDragId(null)};
+function NotebookPage({
+  tasks,
+  dragId,
+  setDragId,
+  createTask,
+  updateTask,
+  addStep,
+  completeTask,
+  reorderNotebook,
+}: {
+  tasks: Task[];
+  dragId: string | null;
+  setDragId: (id: string | null) => void;
+  createTask: (title: string) => void;
+  updateTask: (id: string, patch: Partial<Task>) => void;
+  addStep: (id: string, text: string) => void;
+  completeTask: (id: string) => void;
+  reorderNotebook: (id: string, beforeId?: string) => void;
+}) {
+  const [newTask, setNewTask] = useState('');
 
-  const TaskRow=({task,muted=false}:{task:Task;muted?:boolean})=><article className={`task-row ${muted?'muted':''}`} draggable onDragStart={()=>setDragId(task.id)} onDragOver={e=>e.preventDefault()} onDrop={()=>drop(task.place,task)}>
-    <div className="drag" aria-label="Перетащить">⠿</div><div className="task-main"><div className="title-line"><Editable value={task.title} placeholder="Название" onSave={title=>update(task.id,{title})} className="task-title"/>{task.state&&<span className={`status ${task.state}`}>{stateLabels[task.state]}</span>}{task.place==='done'&&<span className="status done">Готово</span>}</div>
-    <div className="context"><span><b>Точка</b><Editable value={task.stoppedAt} placeholder="Где остановился?" onSave={stoppedAt=>update(task.id,{stoppedAt})}/></span><span className="next"><b>Дальше</b><Editable value={task.nextStep} placeholder="Добавить следующий шаг" onSave={nextStep=>update(task.id,{nextStep})}/></span>{(task.waitingFor||task.state)&&<span><b>Жду</b><Editable value={task.waitingFor} placeholder="Кого или чего?" onSave={waitingFor=>update(task.id,{waitingFor})}/></span>}</div></div>
-    <div className="actions">{task.place==='done'?<button onClick={()=>move(task.id,'pool')}>Восстановить</button>:<><button className="primary-mini" onClick={()=>requestStart(task.id)}>Начать</button>{task.place!=='today'&&<button onClick={()=>move(task.id,'today')}>Сегодня</button>}{task.place!=='week'&&<button onClick={()=>move(task.id,'week')}>Неделя</button>}{task.place!=='pool'&&<button onClick={()=>move(task.id,'pool')}>В пул</button>}<button onClick={()=>complete(task.id)}>Готово</button></>}<button className="icon-danger" onClick={()=>remove(task)} aria-label="Удалить">×</button></div>
-  </article>;
+  return (
+    <main className="notebook-page">
+      <div className="notebook-heading">
+        <div>
+          <p>РАБОЧАЯ ТЕТРАДЬ</p>
+          <h1>Ход работы</h1>
+        </div>
+        <span>Последняя запись = текущий контекст</span>
+      </div>
 
-  return <div className="app"><header><div className="brand"><span className="brand-mark">T</span><strong>TODAY</strong></div><nav>{(['today','week','pool','done'] as const).map(p=><button className={view===p?'active':''} onClick={()=>setView(p)} key={p}>{placeLabels[p]} <span>{counts[p]}</span></button>)}</nav><button className="new-btn" onClick={()=>setNewOpen(true)}><span>＋</span> Новая задача <kbd>N</kbd></button></header>
-    <main><div className="brain"><span>＋</span><input value={brain} onChange={e=>setBrain(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&brain.trim()){add(brain,'pool');setBrain('')}}} placeholder="Что ещё надо не забыть?"/><small>Enter — сохранить в Пул</small></div>
-    {view==='today'?<section className="page fade"><div className="page-heading"><div><p className="eyebrow">Фокус дня</p><h1>Сегодня</h1></div><p>Не всё сразу. Только то, что важно сейчас.</p></div>
-      <section className="now-card"><div className="section-label"><span className="live-dot"/> Сейчас</div>{current?<><div className="now-top"><Editable value={current.title} placeholder="Название" onSave={title=>update(current.id,{title})} className="now-title"/><span className="focus-pill">В фокусе</span></div><div className="now-grid"><div><label>Где остановился</label><Editable value={current.stoppedAt} placeholder="Зафиксировать точку остановки" onSave={stoppedAt=>update(current.id,{stoppedAt})}/></div><div><label>Следующий шаг</label><Editable value={current.nextStep} placeholder="Что сделать дальше?" onSave={nextStep=>update(current.id,{nextStep})}/></div><div><label>Результат</label><Editable value={current.result} placeholder="Что будет считаться готовым?" onSave={result=>update(current.id,{result})}/></div>{current.waitingFor&&<div><label>Жду</label><Editable value={current.waitingFor} placeholder="Кого или чего?" onSave={waitingFor=>update(current.id,{waitingFor})}/></div>}</div><div className="now-actions"><button className="solid" onClick={()=>setNewOpen(true)}>↗ Переключиться</button><button onClick={()=>complete(current.id)}>✓ Завершить</button><i/><button onClick={()=>setState(current.id,'waiting')}>◷ Жду</button><button onClick={()=>setState(current.id,'delegated')}>↗ Делегировать</button><button onClick={()=>setState(current.id,'blocked')}>⊘ Блок</button></div></>:<div className="empty-now"><div>◎</div><h3>Фокус свободен</h3><p>Выберите следующую задачу или начните новую.</p><button className="solid" onClick={()=>setNewOpen(true)}>Начать новую задачу</button></div>}</section>
-      {(showNext||!current)&&available.length>0&&<section className="next-box"><div><p className="eyebrow">Мягкий старт</p><h3>Что дальше?</h3></div><div>{available.slice(0,3).map(t=><button onClick={()=>requestStart(t.id)} key={t.id}>{t.title}<span>→</span></button>)}</div></section>}
-      <section className="list-section"><div className="section-head"><div><h2>Можно продолжить <span>{available.length}</span></h2><p>Действие сейчас на вашей стороне</p></div></div>{available.length?available.map(t=><TaskRow task={t} key={t.id}/>):<Empty text="Доступных задач пока нет"/>}</section>
-      <section className="list-section passive"><div className="section-head"><div><h2>Жду / Делегировано / Блок <span>{passive.length}</span></h2><p>Задачи, которым пока не нужно ваше внимание</p></div></div>{passive.map(t=><TaskRow task={t} muted key={t.id}/>)}</section>
-    </section>:<ListPage place={view} tasks={tasks} onDrop={()=>drop(view)}>{tasks.filter(t=>t.place===view).sort((a,b)=>view==='done'?(b.completedAt||0)-(a.completedAt||0):a.order-b.order).map(t=><TaskRow task={t} key={t.id}/>)}</ListPage>}</main>
-    {newOpen&&<NewModal close={()=>setNewOpen(false)} add={add}/>} {switchTo&&current&&<SwitchModal task={current} close={()=>setSwitchTo(null)} save={context=>start(switchTo,context)}/>} 
-    {(toast||deleted)&&<div className="toast"><span>✓</span>{toast||'Задача удалена'}{deleted&&<button onClick={()=>{setStore(s=>({tasks:[...s.tasks,deleted]}));setDeleted(null);setToast('Задача возвращена')}}>Undo</button>}<button className="toast-x" onClick={()=>{setToast('');setDeleted(null)}}>×</button></div>}
-    <footer><span>Все данные хранятся только на этом устройстве</span><span><i/> Сохранено</span></footer></div>;
+      <form
+        className="new-task-line"
+        onSubmit={(event) => {
+          event.preventDefault();
+          createTask(newTask);
+          setNewTask('');
+        }}
+      >
+        <span>＋</span>
+        <input
+          value={newTask}
+          onChange={(event) => setNewTask(event.target.value)}
+          placeholder="Новая задача..."
+          autoComplete="off"
+        />
+        <small>Enter — добавить</small>
+      </form>
+
+      <section className="notebook-list" onDragOver={(event) => event.preventDefault()} onDrop={() => dragId && reorderNotebook(dragId)}>
+        {tasks.map((task, index) => (
+          <NotebookRow
+            key={task.id}
+            number={index + 1}
+            task={task}
+            onDragStart={() => setDragId(task.id)}
+            onDrop={() => dragId && dragId !== task.id && reorderNotebook(dragId, task.id)}
+            updateTask={updateTask}
+            addStep={addStep}
+            completeTask={completeTask}
+          />
+        ))}
+        {tasks.length === 0 && (
+          <div className="notebook-empty">Добавь первую задачу выше. Здесь будет жить ход твоей работы.</div>
+        )}
+      </section>
+    </main>
+  );
 }
 
-function Empty({text}:{text:string}){return <div className="empty-list">○<span>{text}</span></div>}
-function ListPage({place,tasks,onDrop,children}:{place:Exclude<Place,'now'|'today'>;tasks:Task[];onDrop:()=>void;children:ReactNode}){const copy={week:['Неделя','Ближайший горизонт — без календаря и давления.'],pool:['Пул','Спокойное место для всего, что не хочется держать в голове.'],done:['Готово','Недавно завершённое — без отчётов и аналитики.']}[place];const n=tasks.filter(t=>t.place===place).length;return <section className="page fade" onDragOver={e=>e.preventDefault()} onDrop={onDrop}><div className="page-heading"><div><p className="eyebrow">{place==='pool'?'Внешняя память':place==='week'?'Горизонт внимания':'Тихий архив'}</p><h1>{copy[0]}</h1></div><p>{copy[1]}</p></div><div className="section-head"><h2>{place==='done'?'Завершённые':'Задачи'} <span>{n}</span></h2></div>{n?children:<Empty text="Здесь пока спокойно"/>}</section>}
-function NewModal({close,add}:{close:()=>void;add:(t:string,p:Place)=>void}){const [title,setTitle]=useState(''),[place,setPlace]=useState<Place>('pool');return <div className="overlay" onMouseDown={e=>e.target===e.currentTarget&&close()}><form className="modal" onSubmit={e=>{e.preventDefault();add(title,place)}}><button type="button" className="modal-x" onClick={close}>×</button><p className="eyebrow">Новая мысль</p><h2>Новая задача</h2><label>Название</label><input autoFocus value={title} onChange={e=>setTitle(e.target.value)} placeholder="Что нужно сделать?"/><label>Куда добавить</label><div className="choice">{([['pool','В Пул'],['week','На неделю'],['today','На сегодня'],['now','Начать сейчас']] as [Place,string][]).map(([p,l])=><button type="button" className={place===p?'selected':''} onClick={()=>setPlace(p)} key={p}>{l}</button>)}</div><div className="modal-actions"><button type="button" onClick={close}>Отмена</button><button className="solid" disabled={!title.trim()}>Создать задачу</button></div></form></div>}
-function SwitchModal({task,close,save}:{task:Task;close:()=>void;save:(p:Partial<Task>)=>void}){const [stoppedAt,setStopped]=useState(task.stoppedAt),[nextStep,setNext]=useState(task.nextStep),[waitingFor,setWaiting]=useState(task.waitingFor);return <div className="overlay"><form className="modal switch-modal" onSubmit={e=>{e.preventDefault();save({stoppedAt,nextStep,waitingFor})}}><button type="button" className="modal-x" onClick={close}>×</button><div className="pause-icon">Ⅱ</div><p className="eyebrow">Перед переключением</p><h2>Сохраните точку остановки</h2><p className="modal-copy">Чтобы вернуться к «{task.title}» без потери контекста.</p><label>Где остановился?</label><input autoFocus value={stoppedAt} onChange={e=>setStopped(e.target.value)} placeholder="Коротко: что уже сделано"/><label>Следующий шаг?</label><input value={nextStep} onChange={e=>setNext(e.target.value)} placeholder="Первое действие при возвращении"/><label>Жду кого / чего?</label><input value={waitingFor} onChange={e=>setWaiting(e.target.value)} placeholder="Оставьте пустым, если не ждёте"/><div className="modal-actions"><button type="button" onClick={close}>Остаться</button><button className="solid">Сохранить и переключиться →</button></div></form></div>}
+function NotebookRow({
+  number,
+  task,
+  onDragStart,
+  onDrop,
+  updateTask,
+  addStep,
+  completeTask,
+}: {
+  number: number;
+  task: Task;
+  onDragStart: () => void;
+  onDrop: () => void;
+  updateTask: (id: string, patch: Partial<Task>) => void;
+  addStep: (id: string, text: string) => void;
+  completeTask: (id: string) => void;
+}) {
+  const [step, setStep] = useState('');
+  const last = task.steps[task.steps.length - 1];
+
+  return (
+    <article className="notebook-row" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); onDrop(); }}>
+      <div className="row-number">{number}</div>
+      <div className="row-body">
+        <div className="row-task">
+          <span className="drag-handle" draggable onDragStart={onDragStart} title="Перетащить">⋮⋮</span>
+          <input
+            className="row-title"
+            value={task.title}
+            onChange={(event) => updateTask(task.id, { title: event.target.value })}
+            aria-label="Название задачи"
+          />
+          <span className="last-age" title={last ? new Date(last.createdAt).toLocaleString('ru-RU') : undefined}>
+            {ageLabel(last?.createdAt)}
+          </span>
+          <button className="complete-button" onClick={() => completeTask(task.id)} title="Задача достигла результата">
+            ✓
+          </button>
+        </div>
+
+        <div className="timeline-scroll">
+          <div className="timeline-track">
+            {task.steps.map((item, index) => (
+              <div
+                className={`timeline-step ${index === task.steps.length - 1 ? 'latest' : ''}`}
+                key={item.id}
+                title={new Date(item.createdAt).toLocaleString('ru-RU')}
+              >
+                <span>{item.text}</span>
+                {index < task.steps.length - 1 && <b>→</b>}
+              </div>
+            ))}
+            <form
+              className="step-input-wrap"
+              onSubmit={(event) => {
+                event.preventDefault();
+                addStep(task.id, step);
+                setStep('');
+              }}
+            >
+              <input
+                value={step}
+                onChange={(event) => setStep(event.target.value)}
+                placeholder={task.steps.length ? 'Что произошло дальше?' : 'Запиши первое действие...'}
+                autoComplete="off"
+              />
+            </form>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function BoardPage({
+  store,
+  dragId,
+  setDragId,
+  createTask,
+  moveTask,
+  addToNotebook,
+  completeTask,
+  deleteTask,
+  renameColumn,
+}: {
+  store: Store;
+  dragId: string | null;
+  setDragId: (id: string | null) => void;
+  createTask: (title: string, columnId: ColumnId) => void;
+  moveTask: (taskId: string, columnId: ColumnId, beforeId?: string) => void;
+  addToNotebook: (taskId: string) => void;
+  completeTask: (taskId: string) => void;
+  deleteTask: (taskId: string) => void;
+  renameColumn: (columnId: ColumnId, title: string) => void;
+}) {
+  return (
+    <main className="board-page">
+      <div className="board-heading">
+        <div>
+          <p>ДОСКА</p>
+          <h1>Все задачи</h1>
+        </div>
+        <span>Перетаскивай карточки между горизонтами</span>
+      </div>
+
+      <div className="board-scroll">
+        <div className="board-grid">
+          {columnIds.map((columnId) => {
+            const tasks = store.tasks
+              .filter((task) => task.columnId === columnId)
+              .sort((a, b) => a.boardOrder - b.boardOrder);
+            return (
+              <BoardColumn
+                key={columnId}
+                columnId={columnId}
+                title={store.columnTitles[columnId]}
+                tasks={tasks}
+                dragId={dragId}
+                onDragStart={setDragId}
+                onDrop={(beforeId) => dragId && moveTask(dragId, columnId, beforeId)}
+                createTask={createTask}
+                addToNotebook={addToNotebook}
+                completeTask={completeTask}
+                deleteTask={deleteTask}
+                renameColumn={renameColumn}
+              />
+            );
+          })}
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function BoardColumn({
+  columnId,
+  title,
+  tasks,
+  dragId,
+  onDragStart,
+  onDrop,
+  createTask,
+  addToNotebook,
+  completeTask,
+  deleteTask,
+  renameColumn,
+}: {
+  columnId: ColumnId;
+  title: string;
+  tasks: Task[];
+  dragId: string | null;
+  onDragStart: (id: string | null) => void;
+  onDrop: (beforeId?: string) => void;
+  createTask: (title: string, columnId: ColumnId) => void;
+  addToNotebook: (taskId: string) => void;
+  completeTask: (taskId: string) => void;
+  deleteTask: (taskId: string) => void;
+  renameColumn: (columnId: ColumnId, title: string) => void;
+}) {
+  const [draft, setDraft] = useState('');
+
+  return (
+    <section
+      className={`board-column column-${columnId}`}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={() => dragId && onDrop()}
+    >
+      <div className="column-head">
+        <input
+          value={title}
+          onChange={(event) => renameColumn(columnId, event.target.value)}
+          onBlur={(event) => renameColumn(columnId, event.target.value.trim())}
+          aria-label="Название колонки"
+        />
+        <span>{tasks.length}</span>
+      </div>
+
+      <div className="board-cards">
+        {tasks.map((task) => (
+          <article
+            className="board-card"
+            key={task.id}
+            draggable
+            onDragStart={() => onDragStart(task.id)}
+            onDragEnd={() => onDragStart(null)}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.stopPropagation();
+              if (dragId && dragId !== task.id) onDrop(task.id);
+            }}
+          >
+            <div className="card-title">{task.title}</div>
+            <div className="card-actions">
+              {columnId !== 'done' && (
+                <button onClick={() => addToNotebook(task.id)} title="Открыть в рабочей тетради">В тетрадь</button>
+              )}
+              {columnId !== 'done' && <button onClick={() => completeTask(task.id)} title="Готово">✓</button>}
+              <button className="delete-card" onClick={() => deleteTask(task.id)} title="Удалить">×</button>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <form
+        className="column-add"
+        onSubmit={(event) => {
+          event.preventDefault();
+          createTask(draft, columnId);
+          setDraft('');
+        }}
+      >
+        <span>＋</span>
+        <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Добавить задачу" />
+      </form>
+    </section>
+  );
+}
+
 export default App;
