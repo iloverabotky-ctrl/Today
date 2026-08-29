@@ -1,23 +1,33 @@
-/* TODAY v4.1 — visual separation between successive notebook status updates */
+/* TODAY v4.2 — visual separation between successive notebook status updates */
 
 .timeline-track{
   gap:18px;
+  align-items:center;
 }
 
 .timeline-step{
   position:relative;
   gap:0;
   overflow:visible;
+  max-width:340px;
 }
 
 /* Each saved update is its own readable zone, not one continuous sentence. */
 .timeline-step span{
   display:block;
+  min-width:120px;
+  max-width:320px;
   padding:7px 10px;
   border:1px solid #303640;
   border-radius:8px;
   background:#191c21;
   color:#b7bdc7;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  line-height:1.35;
+  overflow:visible;
+  text-overflow:clip;
 }
 
 .timeline-step b{
@@ -112,6 +122,8 @@
 
 @media(max-width:760px){
   .timeline-track{gap:13px}
+  .timeline-step{max-width:280px}
+  .timeline-step span{max-width:260px}
   .timeline-step + .timeline-step::before{left:-13px;width:13px}
   .timeline-step + .timeline-step::after{left:-7px}
   .timeline-step + .step-input-wrap::before{left:-16px;width:15px}
