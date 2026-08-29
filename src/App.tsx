@@ -1,44 +1,55 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardColumnId, ColumnId, Store, Task } from './types';
 import { defaultColumnTitles, demo, STORAGE_KEY } from './data';
 
-const boardColumnIds: BoardColumnId[] = ['today', 'week', 'month', 'delegated', 'done'];
-type Page = 'notebook' | 'board' | 'people';
+const BOARD_COLUMNS: BoardColumnId[] = ['today', 'week', 'month', 'delegated', 'done'];
 const DAY = 24 * 60 * 60 * 1000;
+const STALE_AFTER = 2 * DAY;
+const FRONT_EDGE = 7;
+type Page = 'notebook' | 'board' | 'people';
+
 const newId = () => crypto.randomUUID();
+const isColumnId = (value: unknown): value is ColumnId =>
+  ['today', 'week', 'month', 'delegated', 'done', 'pool'].includes(String(value));
 
 const normalizeStore = (value: unknown): Store => {
   const raw = (value && typeof value === 'object' ? value : {}) as Partial<Store> & { tasks?: unknown[] };
-  const tasks = Array.isArray(raw.tasks)
+  const tasks: Task[] = Array.isArray(raw.tasks)
     ? raw.tasks.map((item, index) => {
         const task = (item && typeof item === 'object' ? item : {}) as Partial<Task>;
-        const columnId: ColumnId = ['today', 'week', 'month', 'delegated', 'done', 'pool'].includes(String(task.columnId))
-          ? (task.columnId as ColumnId)
-          : 'pool';
+        const steps = Array.isArray(task.steps)
+          ? task.steps.map((step, stepIndex) => {
+              const source = (step && typeof step === 'object' ? step : {}) as Partial<Task['steps'][number]>;
+              return {
+                id: typeof source.id === 'string' ? source.id : newId(),
+                text: typeof source.text === 'string' ? source.text : `Запись ${stepIndex + 1}`,
+                createdAt: typeof source.createdAt === 'number' ? source.createdAt : Date.now(),
+              };
+            })
+          : [];
         return {
-          id: task.id || newId(),
-          title: task.title || `Задача ${index + 1}`,
-          columnId,
-          boardOrder: Number.isFinite(task.boardOrder) ? Number(task.boardOrder) : index,
+          id: typeof task.id === 'string' ? task.id : newId(),
+          title: typeof task.title === 'string' ? task.title : `Задача ${index + 1}`,
+          columnId: isColumnId(task.columnId) ? task.columnId : 'pool',
+          boardOrder: typeof task.boardOrder === 'number' ? task.boardOrder : index,
           inNotebook: Boolean(task.inNotebook),
-          notebookOrder: Number.isFinite(task.notebookOrder) ? Number(task.notebookOrder) : index,
-          steps: Array.isArray(task.steps) ? task.steps : [],
+          notebookOrder: typeof task.notebookOrder === 'number' ? task.notebookOrder : index,
+          steps,
           waitingPerson: typeof task.waitingPerson === 'string' ? task.waitingPerson : '',
           returnAt: typeof task.returnAt === 'number' ? task.returnAt : null,
           createdAt: typeof task.createdAt === 'number' ? task.createdAt : Date.now(),
           completedAt: typeof task.completedAt === 'number' ? task.completedAt : null,
-        } satisfies Task;
+        };
       })
     : demo.tasks;
-
-  const activeTaskId = typeof raw.activeTaskId === 'string' && tasks.some((task) => task.id === raw.activeTaskId)
-    ? raw.activeTaskId
-    : null;
 
   return {
     tasks,
     columnTitles: { ...defaultColumnTitles, ...(raw.columnTitles || {}) },
-    activeTaskId,
+    activeTaskId:
+      typeof raw.activeTaskId === 'string' && tasks.some((task) => task.id === raw.activeTaskId)
+        ? raw.activeTaskId
+        : null,
   };
 };
 
@@ -58,6 +69,7 @@ const nextNotebookOrder = (tasks: Task[]) =>
   Math.max(-1, ...tasks.filter((task) => task.inNotebook).map((task) => task.notebookOrder)) + 1;
 
 const lastTouched = (task: Task) => task.steps.at(-1)?.createdAt ?? task.createdAt;
+const lastStep = (task: Task) => task.steps.at(-1)?.text || 'Пока без записей';
 
 const ageLabel = (timestamp: number, now: number) => {
   const minutes = Math.max(0, Math.floor((now - timestamp) / 60_000));
@@ -70,25 +82,26 @@ const ageLabel = (timestamp: number, now: number) => {
 };
 
 const returnLabel = (timestamp: number | null, now: number) => {
-  if (!timestamp) return '';
+  if (!timestamp) return 'без возврата';
   if (timestamp <= now) return 'вернуть сейчас';
-  const diff = timestamp - now;
-  const hours = Math.ceil(diff / (60 * 60 * 1000));
+  const hours = Math.ceil((timestamp - now) / (60 * 60 * 1000));
   if (hours <= 24) return `через ${hours} ч`;
-  return `через ${Math.ceil(hours / 24)} дн`;
+  const days = Math.ceil(hours / 24);
+  return days === 1 ? 'завтра' : `через ${days} дн`;
 };
 
 function App() {
   const [store, setStore] = useState<Store>(loadStore);
   const [page, setPage] = useState<Page>('notebook');
+  const [now, setNow] = useState(Date.now());
   const [dragBoardId, setDragBoardId] = useState<string | null>(null);
   const [dragNotebookId, setDragNotebookId] = useState<string | null>(null);
+  const [poolOpen, setPoolOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickText, setQuickText] = useState('');
-  const [poolOpen, setPoolOpen] = useState(false);
   const [checkpointTarget, setCheckpointTarget] = useState<string | null>(null);
-  const [now, setNow] = useState(Date.now());
-  const quickRef = useRef<HTMLInputElement>(null);
+  const [waitingTaskId, setWaitingTaskId] = useState<string | null>(null);
+  const quickRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
@@ -104,12 +117,20 @@ function App() {
   }, [quickOpen]);
 
   useEffect(() => {
+    document.querySelectorAll<HTMLElement>('.timeline-scroll').forEach((node) => {
+      node.scrollLeft = node.scrollWidth;
+    });
+  }, [store.tasks]);
+
+  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable;
-      if (event.key === 'Escape' && quickOpen) {
+      if (event.key === 'Escape') {
         setQuickOpen(false);
-        return;
+        setPoolOpen(false);
+        setWaitingTaskId(null);
+        setCheckpointTarget(null);
       }
       if (typing) return;
       if (event.key.toLowerCase() === 'n') {
@@ -127,16 +148,13 @@ function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [quickOpen]);
-
-  useEffect(() => {
-    document.querySelectorAll<HTMLElement>('.timeline-scroll').forEach((node) => {
-      node.scrollLeft = node.scrollWidth;
-    });
-  }, [store.tasks]);
+  }, []);
 
   const notebookTasks = useMemo(
-    () => store.tasks.filter((task) => task.inNotebook && task.columnId === 'today').sort((a, b) => a.notebookOrder - b.notebookOrder),
+    () =>
+      store.tasks
+        .filter((task) => task.inNotebook && task.columnId === 'today')
+        .sort((a, b) => a.notebookOrder - b.notebookOrder),
     [store.tasks],
   );
 
@@ -151,12 +169,20 @@ function App() {
   );
 
   const staleTasks = useMemo(
-    () => store.tasks.filter((task) => task.inNotebook && task.columnId === 'today' && now - lastTouched(task) >= 2 * DAY),
-    [store.tasks, now],
+    () => notebookTasks.filter((task) => now - lastTouched(task) >= STALE_AFTER),
+    [notebookTasks, now],
+  );
+
+  const poolTasks = useMemo(
+    () => store.tasks.filter((task) => task.columnId === 'pool').sort((a, b) => a.boardOrder - b.boardOrder),
+    [store.tasks],
   );
 
   const updateTask = (id: string, patch: Partial<Task>) => {
-    setStore((current) => ({ ...current, tasks: current.tasks.map((task) => task.id === id ? { ...task, ...patch } : task) }));
+    setStore((current) => ({
+      ...current,
+      tasks: current.tasks.map((task) => (task.id === id ? { ...task, ...patch } : task)),
+    }));
   };
 
   const createTask = (title: string, columnId: ColumnId = 'pool', inNotebook = false) => {
@@ -186,45 +212,52 @@ function App() {
     if (!clean) return;
     setStore((current) => ({
       ...current,
-      tasks: current.tasks.map((task) => task.id === taskId
-        ? { ...task, steps: [...task.steps, { id: newId(), text: clean, createdAt: Date.now() }] }
-        : task),
+      tasks: current.tasks.map((task) =>
+        task.id === taskId
+          ? { ...task, steps: [...task.steps, { id: newId(), text: clean, createdAt: Date.now() }] }
+          : task,
+      ),
     }));
-  };
-
-  const addToNotebook = (taskId: string) => {
-    setStore((current) => ({
-      ...current,
-      tasks: current.tasks.map((task) => task.id === taskId
-        ? {
-            ...task,
-            columnId: 'today',
-            inNotebook: true,
-            notebookOrder: task.inNotebook ? task.notebookOrder : nextNotebookOrder(current.tasks),
-            boardOrder: nextBoardOrder(current.tasks, 'today'),
-            completedAt: null,
-          }
-        : task),
-    }));
-    setPage('notebook');
   };
 
   const completeTask = (taskId: string) => {
     setStore((current) => ({
       ...current,
       activeTaskId: current.activeTaskId === taskId ? null : current.activeTaskId,
-      tasks: current.tasks.map((task) => task.id === taskId
-        ? {
-            ...task,
-            columnId: 'done',
-            inNotebook: false,
-            boardOrder: nextBoardOrder(current.tasks, 'done'),
-            completedAt: Date.now(),
-            waitingPerson: '',
-            returnAt: null,
-          }
-        : task),
+      tasks: current.tasks.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              columnId: 'done',
+              inNotebook: false,
+              boardOrder: nextBoardOrder(current.tasks, 'done'),
+              completedAt: Date.now(),
+              waitingPerson: '',
+              returnAt: null,
+            }
+          : task,
+      ),
     }));
+  };
+
+  const addToNotebook = (taskId: string) => {
+    setStore((current) => ({
+      ...current,
+      tasks: current.tasks.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              columnId: 'today',
+              inNotebook: true,
+              notebookOrder: task.inNotebook ? task.notebookOrder : nextNotebookOrder(current.tasks),
+              boardOrder: nextBoardOrder(current.tasks, 'today'),
+              completedAt: null,
+            }
+          : task,
+      ),
+    }));
+    setPage('notebook');
+    setPoolOpen(false);
   };
 
   const moveBoardTask = (taskId: string, targetColumn: BoardColumnId, beforeId?: string) => {
@@ -257,7 +290,23 @@ function App() {
     setDragBoardId(null);
   };
 
-  const movePoolTask = (taskId: string, targetColumn: BoardColumnId) => moveBoardTask(taskId, targetColumn);
+  const moveToPool = (taskId: string) => {
+    setStore((current) => ({
+      ...current,
+      activeTaskId: current.activeTaskId === taskId ? null : current.activeTaskId,
+      tasks: current.tasks.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              columnId: 'pool',
+              inNotebook: false,
+              boardOrder: nextBoardOrder(current.tasks, 'pool'),
+              completedAt: null,
+            }
+          : task,
+      ),
+    }));
+  };
 
   const reorderNotebook = (taskId: string, beforeId?: string) => {
     setStore((current) => {
@@ -280,9 +329,6 @@ function App() {
     setDragNotebookId(null);
   };
 
-  const snoozeTask = (taskId: string, days: number) => updateTask(taskId, { returnAt: Date.now() + days * DAY });
-  const clearWaiting = (taskId: string) => updateTask(taskId, { waitingPerson: '', returnAt: null });
-
   const requestActivate = (taskId: string) => {
     if (store.activeTaskId === taskId) return;
     const currentActive = store.tasks.find((task) => task.id === store.activeTaskId && task.columnId !== 'done');
@@ -296,11 +342,33 @@ function App() {
     setStore((current) => ({
       ...current,
       activeTaskId: targetId,
-      tasks: current.tasks.map((task) => task.id === fromId && text.trim()
-        ? { ...task, steps: [...task.steps, { id: newId(), text: text.trim(), createdAt: Date.now() }] }
-        : task),
+      tasks: current.tasks.map((task) =>
+        task.id === fromId && text.trim()
+          ? { ...task, steps: [...task.steps, { id: newId(), text: text.trim(), createdAt: Date.now() }] }
+          : task,
+      ),
     }));
     setCheckpointTarget(null);
+  };
+
+  const setWaiting = (taskId: string, person: string, days: number | null) => {
+    const clean = person.trim();
+    updateTask(taskId, {
+      waitingPerson: clean,
+      returnAt: days === null ? null : Date.now() + days * DAY,
+    });
+    setWaitingTaskId(null);
+  };
+
+  const clearWaiting = (taskId: string) => updateTask(taskId, { waitingPerson: '', returnAt: null });
+  const snooze = (taskId: string, days: number) => updateTask(taskId, { returnAt: Date.now() + days * DAY });
+
+  const deleteTask = (taskId: string) => {
+    setStore((current) => ({
+      ...current,
+      activeTaskId: current.activeTaskId === taskId ? null : current.activeTaskId,
+      tasks: current.tasks.filter((task) => task.id !== taskId),
+    }));
   };
 
   const exportData = () => {
@@ -320,18 +388,22 @@ function App() {
       try {
         setStore(normalizeStore(JSON.parse(String(reader.result || '{}'))));
       } catch {
-        window.alert('Не удалось прочитать резервную копию.');
+        window.alert('Не удалось прочитать резервную копию TODAY.');
       }
     };
     reader.readAsText(file);
   };
 
+  const activeTask = store.tasks.find((task) => task.id === store.activeTaskId) || null;
+  const checkpointTargetTask = store.tasks.find((task) => task.id === checkpointTarget) || null;
+  const waitingTask = store.tasks.find((task) => task.id === waitingTaskId) || null;
+
   return (
     <div className="app-shell">
       <header className="topbar">
         <div className="brand"><span className="brand-mark">T</span><strong>TODAY</strong></div>
-        <nav className="page-switch" aria-label="Разделы">
-          <button className={page === 'notebook' ? 'active' : ''} onClick={() => setPage('notebook')}>Рабочая тетрадь <span>{notebookTasks.length}</span></button>
+        <nav className="page-switch" aria-label="Разделы TODAY">
+          <button className={page === 'notebook' ? 'active' : ''} onClick={() => setPage('notebook')}>Тетрадь <span>{notebookTasks.length}</span></button>
           <button className={page === 'board' ? 'active' : ''} onClick={() => setPage('board')}>Доска</button>
           <button className={page === 'people' ? 'active' : ''} onClick={() => setPage('people')}>Жду людей <span>{waitingTasks.length}</span></button>
         </nav>
@@ -346,76 +418,89 @@ function App() {
         <NotebookPage
           tasks={notebookTasks}
           activeTaskId={store.activeTaskId}
-          dueTasks={dueTasks}
-          waitingCount={waitingTasks.length}
-          staleCount={staleTasks.length}
           now={now}
+          dueTasks={dueTasks}
+          staleCount={staleTasks.length}
+          waitingCount={waitingTasks.length}
           dragId={dragNotebookId}
           setDragId={setDragNotebookId}
           createTask={(title) => createTask(title, 'today', true)}
           updateTask={updateTask}
           addStep={addStep}
-          addToNotebook={addToNotebook}
           completeTask={completeTask}
           reorderNotebook={reorderNotebook}
           requestActivate={requestActivate}
-          snoozeTask={snoozeTask}
+          openWaiting={(taskId) => setWaitingTaskId(taskId)}
           clearWaiting={clearWaiting}
+          snooze={snooze}
         />
       )}
 
       {page === 'board' && (
         <BoardPage
           store={store}
+          now={now}
+          poolTasks={poolTasks}
+          poolOpen={poolOpen}
+          setPoolOpen={setPoolOpen}
           dragId={dragBoardId}
           setDragId={setDragBoardId}
           createTask={createTask}
           moveTask={moveBoardTask}
-          movePoolTask={movePoolTask}
+          moveToPool={moveToPool}
           addToNotebook={addToNotebook}
           completeTask={completeTask}
-          poolOpen={poolOpen}
-          setPoolOpen={setPoolOpen}
-          deleteTask={(id) => setStore((current) => ({ ...current, tasks: current.tasks.filter((task) => task.id !== id) }))}
-          renameColumn={(columnId, title) => setStore((current) => ({
-            ...current,
-            columnTitles: { ...current.columnTitles, [columnId]: title.trim() || defaultColumnTitles[columnId] },
-          }))}
+          deleteTask={deleteTask}
+          renameColumn={(columnId, title) =>
+            setStore((current) => ({
+              ...current,
+              columnTitles: { ...current.columnTitles, [columnId]: title.trim() || defaultColumnTitles[columnId] },
+            }))
+          }
         />
       )}
 
       {page === 'people' && (
         <PeoplePage
           tasks={waitingTasks}
+          dueTasks={dueTasks}
           now={now}
           addToNotebook={addToNotebook}
-          snoozeTask={snoozeTask}
           clearWaiting={clearWaiting}
+          snooze={snooze}
+          openWaiting={(taskId) => setWaitingTaskId(taskId)}
         />
       )}
 
       {quickOpen && (
-        <div className="quick-overlay" onMouseDown={(event) => event.target === event.currentTarget && setQuickOpen(false)}>
-          <form className="quick-capture" onSubmit={(event) => {
-            event.preventDefault();
+        <QuickCapture
+          value={quickText}
+          setValue={setQuickText}
+          inputRef={quickRef}
+          close={() => { setQuickOpen(false); setQuickText(''); }}
+          submit={() => {
             if (!quickText.trim()) return;
-            createTask(quickText, 'pool');
+            createTask(quickText, 'pool', false);
             setQuickText('');
             setQuickOpen(false);
-          }}>
-            <span>＋</span>
-            <input ref={quickRef} value={quickText} onChange={(event) => setQuickText(event.target.value)} placeholder="Что появилось? Сохраним в Пул и вернёмся к работе." />
-            <small>Enter</small>
-          </form>
-        </div>
+          }}
+        />
       )}
 
-      {checkpointTarget && store.activeTaskId && (
+      {checkpointTargetTask && activeTask && (
         <CheckpointModal
-          current={store.tasks.find((task) => task.id === store.activeTaskId)}
-          target={store.tasks.find((task) => task.id === checkpointTarget)}
+          from={activeTask}
+          to={checkpointTargetTask}
           close={() => setCheckpointTarget(null)}
           save={saveCheckpointAndSwitch}
+        />
+      )}
+
+      {waitingTask && (
+        <WaitingModal
+          task={waitingTask}
+          close={() => setWaitingTaskId(null)}
+          save={(person, days) => setWaiting(waitingTask.id, person, days)}
         />
       )}
     </div>
@@ -423,104 +508,162 @@ function App() {
 }
 
 function NotebookPage({
-  tasks, activeTaskId, dueTasks, waitingCount, staleCount, now, dragId, setDragId, createTask,
-  updateTask, addStep, addToNotebook, completeTask, reorderNotebook, requestActivate, snoozeTask, clearWaiting,
+  tasks,
+  activeTaskId,
+  now,
+  dueTasks,
+  staleCount,
+  waitingCount,
+  dragId,
+  setDragId,
+  createTask,
+  updateTask,
+  addStep,
+  completeTask,
+  reorderNotebook,
+  requestActivate,
+  openWaiting,
+  clearWaiting,
+  snooze,
 }: {
-  tasks: Task[]; activeTaskId: string | null; dueTasks: Task[]; waitingCount: number; staleCount: number; now: number;
-  dragId: string | null; setDragId: (id: string | null) => void; createTask: (title: string) => void;
-  updateTask: (id: string, patch: Partial<Task>) => void; addStep: (id: string, text: string) => void;
-  addToNotebook: (id: string) => void; completeTask: (id: string) => void; reorderNotebook: (id: string, beforeId?: string) => void;
-  requestActivate: (id: string) => void; snoozeTask: (id: string, days: number) => void; clearWaiting: (id: string) => void;
+  tasks: Task[];
+  activeTaskId: string | null;
+  now: number;
+  dueTasks: Task[];
+  staleCount: number;
+  waitingCount: number;
+  dragId: string | null;
+  setDragId: (id: string | null) => void;
+  createTask: (title: string) => void;
+  updateTask: (id: string, patch: Partial<Task>) => void;
+  addStep: (id: string, text: string) => void;
+  completeTask: (id: string) => void;
+  reorderNotebook: (id: string, beforeId?: string) => void;
+  requestActivate: (id: string) => void;
+  openWaiting: (id: string) => void;
+  clearWaiting: (id: string) => void;
+  snooze: (id: string, days: number) => void;
 }) {
   const [newTask, setNewTask] = useState('');
+
   return (
     <main className="notebook-page">
-      <div className="notebook-heading">
+      <div className="page-heading compact-heading">
         <div><p>РАБОЧАЯ ТЕТРАДЬ</p><h1>Ход работы</h1></div>
-        <span>Верхние 7 = передний край внимания</span>
+        <span>Записал действие → выгрузил контекст из головы</span>
       </div>
 
-      <div className="attention-summary">
-        <strong>Сводка внимания</strong>
-        <span>{tasks.length} открытых процессов</span>
-        <span>{waitingCount} ждут людей</span>
-        <span className={dueTasks.length ? 'hot' : ''}>{dueTasks.length} вернулись во внимание</span>
-        <span className={staleCount ? 'warm' : ''}>{staleCount} не трогали 2+ дня</span>
+      <div className="attention-strip">
+        <div><strong>{tasks.length}</strong><span>открытых процессов</span></div>
+        <div><strong>{waitingCount}</strong><span>жду людей</span></div>
+        <div className={dueTasks.length ? 'attention-hot' : ''}><strong>{dueTasks.length}</strong><span>вернулись во внимание</span></div>
+        <div className={staleCount ? 'attention-warn' : ''}><strong>{staleCount}</strong><span>не трогались 2+ дня</span></div>
       </div>
 
       {dueTasks.length > 0 && (
-        <div className="returned-strip">
-          <b>Вернулись во внимание</b>
-          <div>{dueTasks.map((task) => (
-            <button key={task.id} onClick={() => {
-              if (!task.inNotebook || task.columnId !== 'today') addToNotebook(task.id);
-              window.setTimeout(() => document.getElementById(`task-${task.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-            }}>{task.title}</button>
-          ))}</div>
-        </div>
+        <section className="returned-panel">
+          <div className="returned-head"><div><p>ВОЗВРАТ ВНИМАНИЯ</p><h2>Снова посмотреть</h2></div><span>{dueTasks.length}</span></div>
+          <div className="returned-list">
+            {dueTasks.slice(0, 6).map((task) => (
+              <div className="returned-item" key={task.id}>
+                <div><strong>{task.title}</strong><small>{task.waitingPerson ? `Жду: ${task.waitingPerson}` : lastStep(task)}</small></div>
+                <div className="returned-actions">
+                  <button onClick={() => requestActivate(task.id)}>▶ В работу</button>
+                  <button onClick={() => snooze(task.id, 1)}>завтра</button>
+                  <button onClick={() => clearWaiting(task.id)}>снять</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
-      <form className="new-task-line" onSubmit={(event) => {
-        event.preventDefault();
-        createTask(newTask);
-        setNewTask('');
-      }}>
+      <form
+        className="new-task-line"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!newTask.trim()) return;
+          createTask(newTask);
+          setNewTask('');
+        }}
+      >
         <span>＋</span>
-        <input id="new-notebook-task" value={newTask} onChange={(event) => setNewTask(event.target.value)} placeholder="Новая задача в рабочую тетрадь..." autoComplete="off" />
-        <small>Enter — добавить · Ctrl+Enter — сюда из любого экрана</small>
+        <input id="new-notebook-task" value={newTask} onChange={(event) => setNewTask(event.target.value)} placeholder="Новая задача в работу..." autoComplete="off" />
+        <small>Enter — добавить · Ctrl+Enter — сюда</small>
       </form>
 
       <section className="notebook-list" onDragOver={(event) => event.preventDefault()} onDrop={() => dragId && reorderNotebook(dragId)}>
         {tasks.map((task, index) => (
-          <Fragment key={task.id}>
-            {index === 0 && <div className="edge-label">ПЕРЕДНИЙ КРАЙ · 1–7</div>}
-            {index === 7 && <div className="edge-divider"><span>ОСТАЛЬНЫЕ ОТКРЫТЫЕ ПРОЦЕССЫ</span></div>}
+          <div key={task.id}>
+            {index === FRONT_EDGE && <div className="backlog-divider"><span>остальные процессы</span><b>{Math.max(0, tasks.length - FRONT_EDGE)}</b></div>}
             <NotebookRow
               number={index + 1}
               task={task}
               now={now}
-              active={activeTaskId === task.id}
-              front={index < 7}
+              frontEdge={index < FRONT_EDGE}
+              active={task.id === activeTaskId}
               onDragStart={() => setDragId(task.id)}
               onDrop={() => dragId && dragId !== task.id && reorderNotebook(dragId, task.id)}
               updateTask={updateTask}
               addStep={addStep}
               completeTask={completeTask}
               requestActivate={requestActivate}
-              snoozeTask={snoozeTask}
+              openWaiting={openWaiting}
               clearWaiting={clearWaiting}
             />
-          </Fragment>
+          </div>
         ))}
-        {tasks.length === 0 && <div className="notebook-empty">Добавь первую задачу. Дальше записывай только то, что произошло.</div>}
+        {tasks.length === 0 && <div className="empty-state">Добавь первую задачу выше. TODAY будет хранить ход процесса вместо твоей головы.</div>}
       </section>
     </main>
   );
 }
 
-function NotebookRow({ number, task, now, active, front, onDragStart, onDrop, updateTask, addStep, completeTask, requestActivate, snoozeTask, clearWaiting }: {
-  number: number; task: Task; now: number; active: boolean; front: boolean; onDragStart: () => void; onDrop: () => void;
-  updateTask: (id: string, patch: Partial<Task>) => void; addStep: (id: string, text: string) => void; completeTask: (id: string) => void;
-  requestActivate: (id: string) => void; snoozeTask: (id: string, days: number) => void; clearWaiting: (id: string) => void;
+function NotebookRow({
+  number,
+  task,
+  now,
+  frontEdge,
+  active,
+  onDragStart,
+  onDrop,
+  updateTask,
+  addStep,
+  completeTask,
+  requestActivate,
+  openWaiting,
+  clearWaiting,
+}: {
+  number: number;
+  task: Task;
+  now: number;
+  frontEdge: boolean;
+  active: boolean;
+  onDragStart: () => void;
+  onDrop: () => void;
+  updateTask: (id: string, patch: Partial<Task>) => void;
+  addStep: (id: string, text: string) => void;
+  completeTask: (id: string) => void;
+  requestActivate: (id: string) => void;
+  openWaiting: (id: string) => void;
+  clearWaiting: (id: string) => void;
 }) {
   const [step, setStep] = useState('');
-  const last = task.steps.at(-1);
-  const stale = now - lastTouched(task) >= 2 * DAY;
-  const due = task.returnAt !== null && task.returnAt <= now;
+  const touched = lastTouched(task);
+  const stale = now - touched >= STALE_AFTER;
 
   return (
-    <article id={`task-${task.id}`} className={`notebook-row ${active ? 'active-row' : ''} ${front ? 'front-row' : ''} ${stale ? 'stale-row' : ''}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); onDrop(); }}>
+    <article className={`notebook-row ${frontEdge ? 'front-edge' : 'deep-row'} ${active ? 'active-row' : ''} ${stale ? 'stale-row' : ''}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); onDrop(); }}>
       <div className="row-number">{number}</div>
       <div className="row-body">
-        <div className="row-task">
+        <div className="row-top">
+          <button className={`focus-button ${active ? 'is-active' : ''}`} onClick={() => requestActivate(task.id)} title={active ? 'Сейчас работаю здесь' : 'Переключиться на эту задачу'}>{active ? '●' : '▶'}</button>
           <span className="drag-handle" draggable onDragStart={onDragStart} title="Перетащить">⋮⋮</span>
-          <input className="row-title" value={task.title} onChange={(event) => updateTask(task.id, { title: event.target.value })} />
-          {active && <span className="active-chip">сейчас</span>}
-          {task.waitingPerson && <span className="waiting-chip">жду {task.waitingPerson}</span>}
-          {task.returnAt && <span className={`return-chip ${due ? 'due' : ''}`}>{returnLabel(task.returnAt, now)}</span>}
-          <span className={`last-age ${stale ? 'stale' : ''}`} title={new Date(lastTouched(task)).toLocaleString('ru-RU')}>{ageLabel(lastTouched(task), now)}</span>
-          <button className={`work-button ${active ? 'active' : ''}`} onClick={() => requestActivate(task.id)} title="Переключиться на эту задачу">▶</button>
-          <button className="complete-button" onClick={() => completeTask(task.id)} title="Задача достигла результата">✓</button>
+          <input className="row-title" value={task.title} onChange={(event) => updateTask(task.id, { title: event.target.value })} aria-label="Название задачи" />
+          {task.waitingPerson && <button className="waiting-chip" onClick={() => openWaiting(task.id)}>жду {task.waitingPerson}</button>}
+          <span className={`last-age ${stale ? 'stale-age' : ''}`} title={new Date(touched).toLocaleString('ru-RU')}>{ageLabel(touched, now)}</span>
+          <button className="small-action" onClick={() => openWaiting(task.id)} title="Жду человека / вернуть внимание">⏳</button>
+          <button className="complete-button" onClick={() => completeTask(task.id)} title="Результат достигнут">✓</button>
         </div>
 
         <div className="timeline-scroll">
@@ -530,134 +673,316 @@ function NotebookRow({ number, task, now, active, front, onDragStart, onDrop, up
                 <span>{item.text}</span>{index < task.steps.length - 1 && <b>→</b>}
               </div>
             ))}
-            <form className="step-input-wrap" onSubmit={(event) => {
-              event.preventDefault();
-              addStep(task.id, step);
-              setStep('');
-            }}>
-              <input value={step} onChange={(event) => setStep(event.target.value)} placeholder={task.steps.length ? 'Что произошло дальше?' : 'Запиши первое действие...'} autoComplete="off" />
+            <form className="step-input-wrap" onSubmit={(event) => { event.preventDefault(); if (!step.trim()) return; addStep(task.id, step); setStep(''); }}>
+              <input value={step} onChange={(event) => setStep(event.target.value)} placeholder={task.steps.length ? 'Что произошло дальше?' : 'Первое действие...'} autoComplete="off" />
             </form>
           </div>
         </div>
 
-        <div className="row-tools">
-          <details className="wait-menu">
-            <summary>Жду / вернуть внимание</summary>
-            <div className="wait-popover">
-              <label>Жду кого?<input value={task.waitingPerson} onChange={(event) => updateTask(task.id, { waitingPerson: event.target.value })} placeholder="Наташа" /></label>
-              <div><button type="button" onClick={() => snoozeTask(task.id, 1)}>завтра</button><button type="button" onClick={() => snoozeTask(task.id, 3)}>3 дня</button><button type="button" onClick={() => snoozeTask(task.id, 7)}>неделя</button><button type="button" onClick={() => clearWaiting(task.id)}>снять</button></div>
-            </div>
-          </details>
-          {last && <span>Последнее: {last.text}</span>}
-        </div>
+        {task.waitingPerson && (
+          <div className={`waiting-line ${task.returnAt !== null && task.returnAt <= now ? 'return-due' : ''}`}>
+            <span>Жду <strong>{task.waitingPerson}</strong></span>
+            <span>{returnLabel(task.returnAt, now)}</span>
+            <button onClick={() => openWaiting(task.id)}>изменить</button>
+            <button onClick={() => clearWaiting(task.id)}>снять ожидание</button>
+          </div>
+        )}
       </div>
     </article>
   );
 }
 
-function BoardPage({ store, dragId, setDragId, createTask, moveTask, movePoolTask, addToNotebook, completeTask, deleteTask, renameColumn, poolOpen, setPoolOpen }: {
-  store: Store; dragId: string | null; setDragId: (id: string | null) => void;
-  createTask: (title: string, columnId: ColumnId) => void; moveTask: (taskId: string, columnId: BoardColumnId, beforeId?: string) => void;
-  movePoolTask: (taskId: string, columnId: BoardColumnId) => void; addToNotebook: (taskId: string) => void; completeTask: (taskId: string) => void;
-  deleteTask: (taskId: string) => void; renameColumn: (columnId: BoardColumnId, title: string) => void;
-  poolOpen: boolean; setPoolOpen: (open: boolean) => void;
+function BoardPage({
+  store,
+  now,
+  poolTasks,
+  poolOpen,
+  setPoolOpen,
+  dragId,
+  setDragId,
+  createTask,
+  moveTask,
+  moveToPool,
+  addToNotebook,
+  completeTask,
+  deleteTask,
+  renameColumn,
+}: {
+  store: Store;
+  now: number;
+  poolTasks: Task[];
+  poolOpen: boolean;
+  setPoolOpen: (open: boolean) => void;
+  dragId: string | null;
+  setDragId: (id: string | null) => void;
+  createTask: (title: string, columnId: ColumnId, inNotebook?: boolean) => void;
+  moveTask: (id: string, columnId: BoardColumnId, beforeId?: string) => void;
+  moveToPool: (id: string) => void;
+  addToNotebook: (id: string) => void;
+  completeTask: (id: string) => void;
+  deleteTask: (id: string) => void;
+  renameColumn: (id: BoardColumnId, title: string) => void;
 }) {
-  const poolTasks = store.tasks.filter((task) => task.columnId === 'pool').sort((a, b) => a.boardOrder - b.boardOrder);
   return (
     <main className="board-page">
-      <div className="board-heading">
+      <div className="page-heading board-heading">
         <div><p>ДОСКА</p><h1>Все обязательства</h1></div>
-        <button className="pool-toggle" onClick={() => setPoolOpen(!poolOpen)}>Пул · {poolTasks.length}</button>
+        <div className="board-heading-actions"><span>Перетаскивай между колонками</span><button className="pool-button" onClick={() => setPoolOpen(true)}>Пул <b>{poolTasks.length}</b></button></div>
+      </div>
+      <div className="board-scroll">
+        <div className="board-grid">
+          {BOARD_COLUMNS.map((columnId) => {
+            const tasks = store.tasks.filter((task) => task.columnId === columnId).sort((a, b) => a.boardOrder - b.boardOrder);
+            return (
+              <BoardColumn
+                key={columnId}
+                columnId={columnId}
+                title={store.columnTitles[columnId]}
+                tasks={tasks}
+                now={now}
+                dragId={dragId}
+                setDragId={setDragId}
+                rename={(title) => renameColumn(columnId, title)}
+                create={(title) => createTask(title, columnId)}
+                moveTask={moveTask}
+                moveToPool={moveToPool}
+                addToNotebook={addToNotebook}
+                completeTask={completeTask}
+                deleteTask={deleteTask}
+              />
+            );
+          })}
+        </div>
       </div>
 
       {poolOpen && (
-        <section className="pool-drawer">
-          <div className="pool-head"><div><b>Пул</b><span>Выгрузи сюда всё, что не обязано жить перед глазами.</span></div><button onClick={() => setPoolOpen(false)}>×</button></div>
-          <ColumnAdd placeholder="Быстро добавить в Пул..." onAdd={(title) => createTask(title, 'pool')} />
-          <div className="pool-list">{poolTasks.map((task) => (
-            <div className="pool-row" key={task.id}><span>{task.title}</span><div><button onClick={() => addToNotebook(task.id)}>В тетрадь</button><button onClick={() => movePoolTask(task.id, 'week')}>Неделя</button><button onClick={() => movePoolTask(task.id, 'month')}>Месяц</button><button onClick={() => deleteTask(task.id)}>×</button></div></div>
-          ))}</div>
-        </section>
+        <PoolDrawer
+          tasks={poolTasks}
+          close={() => setPoolOpen(false)}
+          create={(title) => createTask(title, 'pool')}
+          moveTask={moveTask}
+          addToNotebook={addToNotebook}
+          deleteTask={deleteTask}
+        />
       )}
-
-      <div className="board-scroll"><div className="board-grid">
-        {boardColumnIds.map((columnId) => {
-          const tasks = store.tasks.filter((task) => task.columnId === columnId).sort((a, b) => a.boardOrder - b.boardOrder);
-          return (
-            <section className={`board-column column-${columnId}`} key={columnId} onDragOver={(event) => event.preventDefault()} onDrop={() => dragId && moveTask(dragId, columnId)}>
-              <div className="column-head"><input value={store.columnTitles[columnId]} onChange={(event) => renameColumn(columnId, event.target.value)} /><span>{tasks.length}</span></div>
-              <div className="board-cards">
-                {tasks.map((task) => (
-                  <article className="board-card" key={task.id} draggable onDragStart={() => setDragId(task.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); if (dragId && dragId !== task.id) moveTask(dragId, columnId, task.id); }}>
-                    <div className="card-title">{task.title}</div>
-                    {task.steps.at(-1) && <div className="card-context">{task.steps.at(-1)?.text}</div>}
-                    <div className="card-actions">
-                      {columnId !== 'done' && <button onClick={() => addToNotebook(task.id)}>В тетрадь</button>}
-                      {columnId !== 'done' && <button onClick={() => completeTask(task.id)}>Готово</button>}
-                      <button className="delete-card" onClick={() => deleteTask(task.id)}>×</button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-              {columnId !== 'done' && <ColumnAdd placeholder="+ Добавить задачу" onAdd={(title) => createTask(title, columnId)} />}
-            </section>
-          );
-        })}
-      </div></div>
     </main>
   );
 }
 
-function ColumnAdd({ placeholder, onAdd }: { placeholder: string; onAdd: (title: string) => void }) {
-  const [value, setValue] = useState('');
-  return <form className="column-add" onSubmit={(event) => { event.preventDefault(); if (!value.trim()) return; onAdd(value); setValue(''); }}><input value={value} onChange={(event) => setValue(event.target.value)} placeholder={placeholder} /></form>;
+function BoardColumn({
+  columnId,
+  title,
+  tasks,
+  now,
+  dragId,
+  setDragId,
+  rename,
+  create,
+  moveTask,
+  moveToPool,
+  addToNotebook,
+  completeTask,
+  deleteTask,
+}: {
+  columnId: BoardColumnId;
+  title: string;
+  tasks: Task[];
+  now: number;
+  dragId: string | null;
+  setDragId: (id: string | null) => void;
+  rename: (title: string) => void;
+  create: (title: string) => void;
+  moveTask: (id: string, columnId: BoardColumnId, beforeId?: string) => void;
+  moveToPool: (id: string) => void;
+  addToNotebook: (id: string) => void;
+  completeTask: (id: string) => void;
+  deleteTask: (id: string) => void;
+}) {
+  const [draft, setDraft] = useState(title);
+  const [newTask, setNewTask] = useState('');
+  useEffect(() => setDraft(title), [title]);
+
+  return (
+    <section className={`board-column column-${columnId}`} onDragOver={(event) => event.preventDefault()} onDrop={() => dragId && moveTask(dragId, columnId)}>
+      <div className="column-head">
+        <input value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={() => rename(draft)} onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()} aria-label="Название колонки" />
+        <span>{tasks.length}</span>
+      </div>
+      <div className="board-cards">
+        {tasks.map((task) => (
+          <article
+            className="board-card"
+            key={task.id}
+            draggable
+            onDragStart={() => setDragId(task.id)}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => { event.stopPropagation(); if (dragId && dragId !== task.id) moveTask(dragId, columnId, task.id); }}
+          >
+            <div className="card-title">{task.title}</div>
+            <div className="card-meta">
+              <span>{ageLabel(lastTouched(task), now)}</span>
+              {task.inNotebook && <b>в тетради</b>}
+              {task.waitingPerson && <b className="wait-meta">жду {task.waitingPerson}</b>}
+            </div>
+            <div className="card-actions">
+              {columnId !== 'done' && <button onClick={() => addToNotebook(task.id)}>В тетрадь</button>}
+              {columnId !== 'done' && <button onClick={() => completeTask(task.id)}>Готово</button>}
+              {columnId !== 'done' && <button onClick={() => moveToPool(task.id)}>В пул</button>}
+              <button className="delete-card" onClick={() => deleteTask(task.id)}>×</button>
+            </div>
+          </article>
+        ))}
+      </div>
+      {columnId !== 'done' && (
+        <form className="column-add" onSubmit={(event) => { event.preventDefault(); if (!newTask.trim()) return; create(newTask); setNewTask(''); }}>
+          <span>＋</span><input value={newTask} onChange={(event) => setNewTask(event.target.value)} placeholder="Добавить задачу" />
+        </form>
+      )}
+    </section>
+  );
 }
 
-function PeoplePage({ tasks, now, addToNotebook, snoozeTask, clearWaiting }: {
-  tasks: Task[]; now: number; addToNotebook: (id: string) => void; snoozeTask: (id: string, days: number) => void; clearWaiting: (id: string) => void;
+function PoolDrawer({
+  tasks,
+  close,
+  create,
+  moveTask,
+  addToNotebook,
+  deleteTask,
+}: {
+  tasks: Task[];
+  close: () => void;
+  create: (title: string) => void;
+  moveTask: (id: string, columnId: BoardColumnId) => void;
+  addToNotebook: (id: string) => void;
+  deleteTask: (id: string) => void;
+}) {
+  const [text, setText] = useState('');
+  return (
+    <div className="drawer-overlay" onMouseDown={(event) => event.target === event.currentTarget && close()}>
+      <aside className="pool-drawer">
+        <div className="drawer-head"><div><p>ВНЕШНЯЯ ПАМЯТЬ</p><h2>Пул <span>{tasks.length}</span></h2></div><button onClick={close}>×</button></div>
+        <p className="drawer-copy">Сюда складывается всё, что не должно занимать внимание прямо сейчас.</p>
+        <form className="pool-add" onSubmit={(event) => { event.preventDefault(); if (!text.trim()) return; create(text); setText(''); }}>
+          <input value={text} onChange={(event) => setText(event.target.value)} placeholder="Быстро выгрузить задачу..." autoFocus /><button>＋</button>
+        </form>
+        <div className="pool-list">
+          {tasks.map((task) => (
+            <article className="pool-card" key={task.id}>
+              <strong>{task.title}</strong>
+              <div>
+                <button onClick={() => addToNotebook(task.id)}>В работу</button>
+                <button onClick={() => moveTask(task.id, 'today')}>Сегодня</button>
+                <button onClick={() => moveTask(task.id, 'week')}>Неделя</button>
+                <button onClick={() => moveTask(task.id, 'month')}>Месяц</button>
+                <button className="delete-card" onClick={() => deleteTask(task.id)}>×</button>
+              </div>
+            </article>
+          ))}
+          {tasks.length === 0 && <div className="drawer-empty">Пул пуст. Хороший знак.</div>}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function PeoplePage({
+  tasks,
+  dueTasks,
+  now,
+  addToNotebook,
+  clearWaiting,
+  snooze,
+  openWaiting,
+}: {
+  tasks: Task[];
+  dueTasks: Task[];
+  now: number;
+  addToNotebook: (id: string) => void;
+  clearWaiting: (id: string) => void;
+  snooze: (id: string, days: number) => void;
+  openWaiting: (id: string) => void;
 }) {
   const groups = useMemo(() => {
     const map = new Map<string, Task[]>();
     tasks.forEach((task) => {
-      const person = task.waitingPerson.trim() || 'Без имени';
-      map.set(person, [...(map.get(person) || []), task]);
+      const key = task.waitingPerson.trim() || 'Без имени';
+      map.set(key, [...(map.get(key) || []), task]);
     });
     return [...map.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [tasks]);
 
   return (
     <main className="people-page">
-      <div className="board-heading"><div><p>ЖДУ ЛЮДЕЙ</p><h1>Мяч не у меня</h1></div><span>Открой перед звонком человеку</span></div>
+      <div className="page-heading"><div><p>ЖДУ ЛЮДЕЙ</p><h1>Мяч не на моей стороне</h1></div><span>{tasks.length} зависших вопросов · {dueTasks.length} уже пора вернуть</span></div>
       <div className="people-grid">
         {groups.map(([person, personTasks]) => (
           <section className="person-card" key={person}>
-            <header><h2>{person}</h2><span>{personTasks.length}</span></header>
-            {personTasks.map((task) => {
-              const due = task.returnAt !== null && task.returnAt <= now;
-              return <div className="person-task" key={task.id}>
-                <div><b>{task.title}</b><p>{task.steps.at(-1)?.text || 'Нет записи о последнем действии'}</p><small className={due ? 'due-text' : ''}>{task.returnAt ? returnLabel(task.returnAt, now) : 'без возврата внимания'}</small></div>
-                <div className="person-actions"><button onClick={() => addToNotebook(task.id)}>В тетрадь</button><button onClick={() => snoozeTask(task.id, 1)}>завтра</button><button onClick={() => snoozeTask(task.id, 3)}>3 дня</button><button onClick={() => clearWaiting(task.id)}>получил ответ</button></div>
-              </div>;
-            })}
+            <div className="person-head"><div className="person-avatar">{person.slice(0, 1).toUpperCase()}</div><div><h2>{person}</h2><span>{personTasks.length} {personTasks.length === 1 ? 'вопрос' : 'вопроса'}</span></div></div>
+            <div className="person-tasks">
+              {personTasks.map((task) => {
+                const due = task.returnAt !== null && task.returnAt <= now;
+                return (
+                  <article className={`person-task ${due ? 'person-due' : ''}`} key={task.id}>
+                    <div><strong>{task.title}</strong><p>{lastStep(task)}</p><small>{returnLabel(task.returnAt, now)}</small></div>
+                    <div className="person-actions">
+                      <button onClick={() => addToNotebook(task.id)}>В работу</button>
+                      <button onClick={() => snooze(task.id, 1)}>+1 день</button>
+                      <button onClick={() => openWaiting(task.id)}>изменить</button>
+                      <button onClick={() => clearWaiting(task.id)}>снять</button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           </section>
         ))}
-        {groups.length === 0 && <div className="notebook-empty">Никого не ждёшь. Редкий и прекрасный момент.</div>}
+        {groups.length === 0 && <div className="empty-state people-empty">Сейчас ни от кого ничего не ждёшь.</div>}
       </div>
     </main>
   );
 }
 
-function CheckpointModal({ current, target, close, save }: { current?: Task; target?: Task; close: () => void; save: (text: string) => void }) {
+function QuickCapture({ value, setValue, inputRef, close, submit }: { value: string; setValue: (value: string) => void; inputRef: { current: HTMLInputElement | null }; close: () => void; submit: () => void }) {
+  return (
+    <div className="quick-overlay" onMouseDown={(event) => event.target === event.currentTarget && close()}>
+      <form className="quick-capture" onSubmit={(event) => { event.preventDefault(); submit(); }}>
+        <span>＋</span><input ref={inputRef} value={value} onChange={(event) => setValue(event.target.value)} placeholder="Что появилось?" autoComplete="off" /><kbd>Enter → Пул</kbd>
+      </form>
+    </div>
+  );
+}
+
+function CheckpointModal({ from, to, close, save }: { from: Task; to: Task; close: () => void; save: (text: string) => void }) {
   const [text, setText] = useState('');
-  if (!current || !target) return null;
   return (
     <div className="modal-overlay" onMouseDown={(event) => event.target === event.currentTarget && close()}>
-      <form className="checkpoint-modal" onSubmit={(event) => { event.preventDefault(); save(text); }}>
-        <small>ПЕРЕД ПЕРЕКЛЮЧЕНИЕМ</small>
-        <h2>Оставь checkpoint</h2>
-        <p><b>{current.title}</b> → {target.title}</p>
-        <input autoFocus value={text} onChange={(event) => setText(event.target.value)} placeholder="Где оставил? Например: отправил Наташе вариант, жду ОС" />
-        <div><button type="button" onClick={close}>Не переключаться</button><button className="primary" type="submit">Переключиться →</button></div>
+      <form className="modal-card checkpoint-card" onSubmit={(event) => { event.preventDefault(); save(text); }}>
+        <p>CHECKPOINT ПЕРЕД ПЕРЕКЛЮЧЕНИЕМ</p><h2>Где оставил «{from.title}»?</h2>
+        <span className="switch-copy">После сохранения переключимся на «{to.title}».</span>
+        <input autoFocus value={text} onChange={(event) => setText(event.target.value)} placeholder="Например: отправил Наташе вариант №2, теперь жду" />
+        <div className="modal-actions"><button type="button" onClick={close}>Остаться</button><button className="primary" type="submit">Сохранить и переключиться →</button></div>
+      </form>
+    </div>
+  );
+}
+
+function WaitingModal({ task, close, save }: { task: Task; close: () => void; save: (person: string, days: number | null) => void }) {
+  const [person, setPerson] = useState(task.waitingPerson);
+  const [days, setDays] = useState<number | null>(task.returnAt ? 1 : null);
+  return (
+    <div className="modal-overlay" onMouseDown={(event) => event.target === event.currentTarget && close()}>
+      <form className="modal-card waiting-modal" onSubmit={(event) => { event.preventDefault(); save(person, days); }}>
+        <p>ВЫГРУЗИТЬ ОЖИДАНИЕ ИЗ ГОЛОВЫ</p><h2>{task.title}</h2>
+        <label>Кого жду?</label><input autoFocus value={person} onChange={(event) => setPerson(event.target.value)} placeholder="Например: Наташа" />
+        <label>Когда вернуть внимание?</label>
+        <div className="return-options">
+          <button type="button" className={days === 1 ? 'selected' : ''} onClick={() => setDays(1)}>завтра</button>
+          <button type="button" className={days === 3 ? 'selected' : ''} onClick={() => setDays(3)}>3 дня</button>
+          <button type="button" className={days === 7 ? 'selected' : ''} onClick={() => setDays(7)}>неделя</button>
+          <button type="button" className={days === null ? 'selected' : ''} onClick={() => setDays(null)}>не возвращать</button>
+        </div>
+        <div className="modal-actions"><button type="button" onClick={close}>Отмена</button><button className="primary" disabled={!person.trim()}>Сохранить ожидание</button></div>
       </form>
     </div>
   );
