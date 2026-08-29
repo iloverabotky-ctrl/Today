@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles.css';
 import './status-separators.css';
+import './waiting-picker.css';
 
 const STORAGE_KEY = 'today-cockpit-v2';
 
