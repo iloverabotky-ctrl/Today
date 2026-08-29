@@ -6,7 +6,6 @@ import './status-separators.css';
 import './waiting-picker.css';
 import './team-oneonone.css';
 import './work-chat.css';
-import { initManagementWorkspace } from './team-oneonone';
 import { initWorkChatExperience } from './work-chat';
 
 const STORAGE_KEY = 'today-cockpit-v2';
@@ -36,5 +35,8 @@ try {
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
-initManagementWorkspace();
-initWorkChatExperience();
+
+// Start the notebook enhancement only after React has committed the initial UI.
+// The management workspace observer is temporarily disabled here because its
+// self-triggering DOM observer could lock the browser in an infinite loop.
+window.setTimeout(() => initWorkChatExperience(), 0);
