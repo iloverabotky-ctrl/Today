@@ -1,8 +1,24 @@
-export type Place = 'pool' | 'week' | 'today' | 'now' | 'done';
-export type TaskState = 'waiting' | 'delegated' | 'blocked' | null;
-export interface Task {
-  id: string; title: string; place: Place; state: TaskState;
-  stoppedAt: string; nextStep: string; waitingFor: string; result: string;
-  attentionAt: string | null; order: number; createdAt: number; completedAt: number | null;
+export type ColumnId = 'today' | 'week' | 'month' | 'delegated' | 'done';
+
+export interface TaskStep {
+  id: string;
+  text: string;
+  createdAt: number;
 }
-export interface Store { tasks: Task[]; }
+
+export interface Task {
+  id: string;
+  title: string;
+  columnId: ColumnId;
+  boardOrder: number;
+  inNotebook: boolean;
+  notebookOrder: number;
+  steps: TaskStep[];
+  createdAt: number;
+  completedAt: number | null;
+}
+
+export interface Store {
+  tasks: Task[];
+  columnTitles: Record<ColumnId, string>;
+}
