@@ -19,7 +19,7 @@ function App(){
   const [store,setStore]=useState<Store>(load),[view,setView]=useState<Exclude<Place,'now'>>('today');
   const [newOpen,setNewOpen]=useState(false),[brain,setBrain]=useState(''),[toast,setToast]=useState('');
   const [deleted,setDeleted]=useState<Task|null>(null),[switchTo,setSwitchTo]=useState<string|null>(null),[showNext,setShowNext]=useState(false);
-  const [dragId,setDragId]=useState<string|null>(null); const toastTimer=useRef<number>();
+  const [dragId,setDragId]=useState<string|null>(null); const toastTimer=useRef<number | undefined>(undefined);
   useEffect(()=>localStorage.setItem(STORAGE_KEY,JSON.stringify(store)),[store]);
   useEffect(()=>{const key=(e:KeyboardEvent)=>{const t=e.target as HTMLElement;if(e.key.toLowerCase()==='n'&&!['INPUT','TEXTAREA'].includes(t.tagName)){e.preventDefault();setNewOpen(true)}};addEventListener('keydown',key);return()=>removeEventListener('keydown',key)},[]);
   const notify=(s:string)=>{setToast(s);clearTimeout(toastTimer.current);toastTimer.current=setTimeout(()=>setToast(''),2600)};
