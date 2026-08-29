@@ -4,6 +4,8 @@ import App from './App';
 import './styles.css';
 import './status-separators.css';
 import './waiting-picker.css';
+import './team-oneonone.css';
+import { initManagementWorkspace } from './team-oneonone';
 
 const STORAGE_KEY = 'today-cockpit-v2';
 
@@ -32,3 +34,4 @@ try {
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
+initManagementWorkspace();
