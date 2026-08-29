@@ -1,4 +1,5 @@
-export type ColumnId = 'today' | 'week' | 'month' | 'delegated' | 'done';
+export type BoardColumnId = 'today' | 'week' | 'month' | 'delegated' | 'done';
+export type ColumnId = BoardColumnId | 'pool';
 
 export interface TaskStep {
   id: string;
@@ -14,11 +15,14 @@ export interface Task {
   inNotebook: boolean;
   notebookOrder: number;
   steps: TaskStep[];
+  waitingPerson: string;
+  returnAt: number | null;
   createdAt: number;
   completedAt: number | null;
 }
 
 export interface Store {
   tasks: Task[];
-  columnTitles: Record<ColumnId, string>;
+  columnTitles: Record<BoardColumnId, string>;
+  activeTaskId: string | null;
 }
