@@ -1,0 +1,119 @@
+/* TODAY v4.1 — visual separation between successive notebook status updates */
+
+.timeline-track{
+  gap:18px;
+}
+
+.timeline-step{
+  position:relative;
+  gap:0;
+  overflow:visible;
+}
+
+/* Each saved update is its own readable zone, not one continuous sentence. */
+.timeline-step span{
+  display:block;
+  padding:7px 10px;
+  border:1px solid #303640;
+  border-radius:8px;
+  background:#191c21;
+  color:#b7bdc7;
+}
+
+.timeline-step b{
+  display:none;
+}
+
+/* Connector between two successive updates: line + node. */
+.timeline-step + .timeline-step::before{
+  content:"";
+  position:absolute;
+  left:-18px;
+  top:50%;
+  width:18px;
+  height:1px;
+  background:#49515d;
+  transform:translateY(-50%);
+}
+
+.timeline-step + .timeline-step::after{
+  content:"";
+  position:absolute;
+  left:-11px;
+  top:50%;
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:#77808d;
+  border:2px solid #131519;
+  transform:translate(-50%,-50%);
+  box-sizing:content-box;
+}
+
+.timeline-step.latest span{
+  padding:7px 10px;
+  border-color:#456db6;
+  background:#1b2945;
+  color:#e1eaff;
+  box-shadow:inset 0 0 0 1px rgba(111,156,255,.08);
+}
+
+.timeline-step.latest::after{
+  background:#79a3ff;
+  box-shadow:0 0 0 3px rgba(111,156,255,.12);
+}
+
+/* New-status field is visually the next empty node in the same timeline. */
+.timeline-step + .step-input-wrap{
+  position:relative;
+  margin-left:3px;
+}
+
+.timeline-step + .step-input-wrap::before{
+  content:"";
+  position:absolute;
+  left:-21px;
+  top:50%;
+  width:20px;
+  border-top:1px dashed #46505d;
+  transform:translateY(-50%);
+}
+
+.timeline-step + .step-input-wrap::after{
+  content:"+";
+  position:absolute;
+  left:-12px;
+  top:50%;
+  width:15px;
+  height:15px;
+  display:grid;
+  place-items:center;
+  border:1px solid #4b5e7f;
+  border-radius:50%;
+  background:#172033;
+  color:#8fb0f4;
+  font-size:10px;
+  line-height:1;
+  transform:translate(-50%,-50%);
+}
+
+/* Hovering one update raises only that update, helping scan long histories. */
+.timeline-step span:hover{
+  border-color:#414956;
+  background:#1d2026;
+  color:#d4d8de;
+}
+
+.timeline-step.latest span:hover{
+  border-color:#5b83d0;
+  background:#1e3052;
+  color:#eef3ff;
+}
+
+@media(max-width:760px){
+  .timeline-track{gap:13px}
+  .timeline-step + .timeline-step::before{left:-13px;width:13px}
+  .timeline-step + .timeline-step::after{left:-7px}
+  .timeline-step + .step-input-wrap::before{left:-16px;width:15px}
+  .timeline-step + .step-input-wrap::after{left:-9px}
+}
