@@ -1,10 +1,54 @@
-import type { Store, Task } from './types';
-const make = (id:string,title:string,place:Task['place'],order:number, more:Partial<Task>={}):Task => ({id,title,place,order,state:null,stoppedAt:'',nextStep:'',waitingFor:'',result:'',attentionAt:null,createdAt:Date.now()-order*1000,completedAt:null,...more});
-export const demo:Store={tasks:[
-  make('kpi','KPI Пасты','now',0,{stoppedAt:'Определил базовую почасовую ставку.',nextStep:'Рассчитать индивидуальный процент от выручки.',result:'Финальная модель оплаты утверждена.'}),
-  make('evgenia','Маркетолог Евгения','today',1,{state:'waiting',stoppedAt:'Обсудили формат работы и ожидания по зарплате.',waitingFor:'Евгения — финальный ответ по условиям.',nextStep:'Принять решение по офферу.'}),
-  make('events','Мероприятия','today',2,{state:'delegated',stoppedAt:'Передал список мероприятий.',waitingFor:'Обратную связь команды.',nextStep:'Выбрать 3 приоритетных мероприятия.'}),
-  make('vendors','Разобраться с поставщиками','week',3,{nextStep:'Собрать актуальные условия.'}),
-  make('cheese','Проверить документы на сыр','pool',4),
-]};
-export const STORAGE_KEY='today-cockpit-v1';
+import type { ColumnId, Store, Task } from './types';
+
+export const STORAGE_KEY = 'today-cockpit-v2';
+
+export const defaultColumnTitles: Record<ColumnId, string> = {
+  today: 'Сегодня',
+  week: 'Неделя',
+  month: 'Месяц',
+  delegated: 'Делегировано команде',
+  done: 'Готово',
+};
+
+const now = Date.now();
+
+const makeTask = (
+  id: string,
+  title: string,
+  columnId: ColumnId,
+  boardOrder: number,
+  inNotebook = false,
+  notebookOrder = 0,
+  steps: string[] = [],
+): Task => ({
+  id,
+  title,
+  columnId,
+  boardOrder,
+  inNotebook,
+  notebookOrder,
+  steps: steps.map((text, index) => ({
+    id: `${id}-step-${index}`,
+    text,
+    createdAt: now - (steps.length - index) * 18 * 60 * 1000,
+  })),
+  createdAt: now - boardOrder * 60_000,
+  completedAt: columnId === 'done' ? now : null,
+});
+
+export const demo: Store = {
+  columnTitles: defaultColumnTitles,
+  tasks: [
+    makeTask('kpi', 'Поставить KPI Пасты', 'today', 0, true, 0, [
+      'Написал Наталье задачу по постановке KPI',
+      'Зашёл в GPT и начал собирать KPI для ребят',
+      'Жду ОС от Наташи',
+    ]),
+    makeTask('market', 'Позвонить организатору Маркета у моря', 'today', 1, true, 1, [
+      'Нашёл контакт организатора',
+    ]),
+    makeTask('events', 'Разобрать мероприятия на сентябрь', 'week', 0),
+    makeTask('suppliers', 'Проверить поставщиков на новый привоз', 'month', 0),
+    makeTask('breakfasts', 'Собрать ОС по завтракам', 'delegated', 0),
+  ],
+};
