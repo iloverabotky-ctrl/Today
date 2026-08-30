@@ -181,7 +181,7 @@ function App() {
     const id = newId();
     setStore((current) => ({ ...current, tasks: [...current.tasks, {
       id, title: clean, columnId: inNotebook ? 'today' : columnId, boardOrder: nextBoardOrder(current.tasks, columnId, city),
-      inNotebook, notebookOrder: inNotebook ? nextNotebookOrder(current.tasks) : 0, notebookAt: inNotebook ? Date.now() : null, notebookCompleted: false,
+      inNotebook, notebookOrder: inNotebook ? Math.min(0, ...current.tasks.filter((task) => task.inNotebook && !task.notebookCompleted).map((task) => task.notebookOrder)) - 1 : 0, notebookAt: inNotebook ? now : null, notebookCompleted: false,
       steps: [], waitingPerson: '', returnAt: null, assignee: '', deadline: null, project, city, createdAt: Date.now(), completedAt: null,
     }] }));
     return id;
