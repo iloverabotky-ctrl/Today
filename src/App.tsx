@@ -20,6 +20,14 @@ const toDateTimeLocal = (timestamp: number | null) => {
 };
 const fromDateTimeLocal = (value: string) => value ? new Date(value).getTime() : null;
 const formatDateTime = (timestamp: number | null) => timestamp ? new Date(timestamp).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'без даты';
+const formatTaskCreated = (timestamp: number) => {
+  const date = new Date(timestamp);
+  const today = new Date();
+  const time = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  if (date.toDateString() == today.toDateString()) return time;
+  const day = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', '');
+  return `${day} · ${time}`;
+};
 const projectLabel = (project: ProjectId) => project === 'pasta' ? 'Паста' : project === 'kvep' ? 'КВЭП' : '';
 
 const normalizeStore = (value: unknown): Store => {
@@ -389,12 +397,13 @@ function NotebookRow({ number, task, now, active, waiting, onDragStart, onDrop, 
         <button className="row-title row-title-open" type="button" onClick={() => openTask(task.id)} title="Открыть задачу">{task.title}</button>
         {active && <span className="focus-badge">СЕЙЧАС</span>}
         {task.project !== 'none' && <span className={`project-dot dot-${task.project}`} title={projectLabel(task.project)} />}
+        <span className="task-created-time" title={`Создано ${new Date(task.createdAt).toLocaleString('ru-RU')}`}>{formatTaskCreated(task.createdAt)}</span>
         {waiting && <button className="waiting-status" onClick={() => openReminder({ taskId: task.id })}>{waitingPerson ? `ЖДУ · ${waitingPerson}` : 'ЖДУ'}</button>}
         {staleDays >= 3 && !task.notebookCompleted && <span className="stale-age">без движения {staleDays} дн</span>}
       </div>
 
       <div className="stream-line">
-        {hidden > 0 && <button className={`history-more ${expanded ? 'open' : ''}`} onClick={() => setExpanded((value) => !value)}>{expanded ? 'Скрыть' : `История · ${hidden}`}</button>}
+        {hidden > 0 && <button className={`history-more ${expanded ? 'open' : ''}`} onClick={() => setExpanded((value) => !value)} title={expanded ? 'Скрыть историю' : 'Открыть историю'} aria-label={expanded ? 'Скрыть историю' : 'Открыть историю'}>↺ <span>{hidden}</span></button>}
 
         {current ? <div className={`stream-event ${current.waitingPerson ? 'event-waiting' : ''}`} key={current.id}>
           {editing === current.id ? <form onSubmit={(event) => { event.preventDefault(); saveEdit(current); }}><input autoFocus value={editText} onChange={(event) => setEditText(event.target.value)} onBlur={() => saveEdit(current)} onKeyDown={(event) => { if (event.key === 'Escape') setEditing(null); }} /></form> : <>
@@ -405,7 +414,7 @@ function NotebookRow({ number, task, now, active, waiting, onDragStart, onDrop, 
           </>}
         </div> : !task.notebookCompleted && <button className="empty-current" type="button" onClick={() => setNextOpen(true)}>Добавь первое действие</button>}
 
-        {!task.notebookCompleted && (nextOpen ? <form className="step-input-wrap" onSubmit={(event) => { event.preventDefault(); submitNext(); }}><input autoFocus value={step} onChange={(event) => setStep(event.target.value)} onBlur={() => !step.trim() && setNextOpen(false)} onKeyDown={(event) => { if (event.key === 'Escape') { setStep(''); setNextOpen(false); } }} placeholder="Следующий шаг..." /></form> : <button type="button" className={`next-step-trigger ${current ? '' : 'no-current'}`} onClick={() => setNextOpen(true)}>＋ следующий шаг</button>)}
+        {!task.notebookCompleted && (nextOpen ? <form className="step-input-wrap" onSubmit={(event) => { event.preventDefault(); submitNext(); }}><input autoFocus value={step} onChange={(event) => setStep(event.target.value)} onBlur={() => !step.trim() && setNextOpen(false)} onKeyDown={(event) => { if (event.key === 'Escape') { setStep(''); setNextOpen(false); } }} placeholder="Следующий шаг..." /></form> : <button type="button" className={`next-step-trigger ${current ? '' : 'no-current'}`} onClick={() => setNextOpen(true)} title="Следующий шаг" aria-label="Следующий шаг">＋</button>)}
       </div>
 
       {hidden > 0 && <div className={`notebook-history-drawer ${expanded ? 'open' : ''}`} aria-hidden={!expanded}>
