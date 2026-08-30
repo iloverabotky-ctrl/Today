@@ -26,6 +26,8 @@ const normalizeStore = (value: unknown): Store => {
   const raw = (value && typeof value === 'object' ? value : {}) as Partial<Store> & { tasks?: unknown[] };
   const tasks: Task[] = Array.isArray(raw.tasks) ? raw.tasks.map((item, index) => {
     const task = (item && typeof item === 'object' ? item : {}) as Partial<Task>;
+    const delegatedAssignee = task.columnId === 'delegated' && typeof task.assignee === 'string' ? task.assignee : '';
+    const delegatedDeadline = task.columnId === 'delegated' && typeof task.deadline === 'number' ? task.deadline : null;
     const steps: TaskStep[] = Array.isArray(task.steps) ? task.steps.map((itemStep, stepIndex) => {
       const step = (itemStep && typeof itemStep === 'object' ? itemStep : {}) as Partial<TaskStep>;
       return {
@@ -46,8 +48,8 @@ const normalizeStore = (value: unknown): Store => {
       notebookAt: typeof task.notebookAt === 'number' ? task.notebookAt : (task.inNotebook ? Date.now() : null),
       notebookCompleted: Boolean(task.notebookCompleted),
       steps,
-      waitingPerson: typeof task.waitingPerson === 'string' ? task.waitingPerson : '',
-      returnAt: typeof task.returnAt === 'number' ? task.returnAt : null,
+      waitingPerson: typeof task.waitingPerson === 'string' && task.waitingPerson.trim() ? task.waitingPerson : delegatedAssignee,
+      returnAt: typeof task.returnAt === 'number' ? task.returnAt : delegatedDeadline,
       assignee: typeof task.assignee === 'string' ? task.assignee : '',
       deadline: typeof task.deadline === 'number' ? task.deadline : null,
       project: isProject(task.project) ? task.project : 'none',
@@ -102,7 +104,11 @@ const ageLabel = (timestamp: number, now: number) => {
   const days = Math.floor(hours / 24);
   return days === 1 ? 'вчера' : `${days} дн`;
 };
-const taskIsWaiting = (task: Task) => Boolean(task.waitingPerson.trim() || task.steps.some((step) => step.waitingPerson.trim()));
+const taskIsWaiting = (task: Task) => Boolean(
+  task.waitingPerson.trim()
+  || (task.columnId === 'delegated' && task.assignee.trim())
+  || task.steps.some((step) => step.waitingPerson.trim()),
+);
 
 function App() {
   const [store, setStore] = useState<Store>(loadStore);
@@ -164,8 +170,6 @@ function App() {
   const teamNames = useMemo(() => loadTeamNames(), [teamVersion]);
   const notebookReady = useMemo(() => store.tasks.filter((task) => task.inNotebook && task.columnId !== 'done' && (task.notebookAt === null || task.notebookAt <= now)).sort((a, b) => {
     if (a.notebookCompleted !== b.notebookCompleted) return a.notebookCompleted ? 1 : -1;
-    const aw = taskIsWaiting(a), bw = taskIsWaiting(b);
-    if (aw !== bw) return aw ? 1 : -1;
     return a.notebookOrder - b.notebookOrder;
   }), [store.tasks, now]);
   const notebookUpcoming = useMemo(() => store.tasks.filter((task) => task.inNotebook && task.columnId !== 'done' && task.notebookAt !== null && task.notebookAt > now).sort((a, b) => (a.notebookAt || 0) - (b.notebookAt || 0)), [store.tasks, now]);
@@ -206,15 +210,20 @@ function App() {
   };
   const toggleNotebookCompleted = (taskId: string) => updateTask(taskId, { notebookCompleted: !store.tasks.find((task) => task.id === taskId)?.notebookCompleted });
   const finishTask = (taskId: string) => setStore((current) => ({ ...current, activeTaskId: current.activeTaskId === taskId ? null : current.activeTaskId, tasks: current.tasks.map((task) => task.id === taskId ? { ...task, columnId: 'done', inNotebook: false, notebookAt: null, notebookCompleted: false, completedAt: Date.now(), waitingPerson: '', returnAt: null } : task) }));
-  const moveBoardTask = (taskId: string, targetColumn: BoardColumnId, beforeId?: string) => setStore((current) => {
-    const moving = current.tasks.find((task) => task.id === taskId); if (!moving) return current;
-    const siblings = current.tasks.filter((task) => !task.inNotebook && task.city === moving.city && task.columnId === targetColumn && task.id !== taskId).sort((a, b) => a.boardOrder - b.boardOrder);
-    const index = beforeId ? siblings.findIndex((task) => task.id === beforeId) : -1;
-    const moved = { ...moving, columnId: targetColumn, completedAt: targetColumn === 'done' ? Date.now() : null };
-    siblings.splice(index >= 0 ? index : siblings.length, 0, moved);
-    const order = new Map(siblings.map((task, i) => [task.id, i]));
-    return { ...current, tasks: current.tasks.map((task) => task.id === taskId ? { ...moved, boardOrder: order.get(task.id) ?? 0 } : order.has(task.id) ? { ...task, boardOrder: order.get(task.id)! } : task) };
-  });
+  const moveBoardTask = (taskId: string, targetColumn: BoardColumnId, beforeId?: string) => {
+    let shouldChooseDelegate = false;
+    setStore((current) => {
+      const moving = current.tasks.find((task) => task.id === taskId); if (!moving) return current;
+      shouldChooseDelegate = targetColumn === 'delegated' && moving.columnId !== 'delegated';
+      const siblings = current.tasks.filter((task) => !task.inNotebook && task.city === moving.city && task.columnId === targetColumn && task.id !== taskId).sort((a, b) => a.boardOrder - b.boardOrder);
+      const index = beforeId ? siblings.findIndex((task) => task.id === beforeId) : -1;
+      const moved = { ...moving, columnId: targetColumn, completedAt: targetColumn === 'done' ? Date.now() : null };
+      siblings.splice(index >= 0 ? index : siblings.length, 0, moved);
+      const order = new Map(siblings.map((task, i) => [task.id, i]));
+      return { ...current, tasks: current.tasks.map((task) => task.id === taskId ? { ...moved, boardOrder: order.get(task.id) ?? 0 } : order.has(task.id) ? { ...task, boardOrder: order.get(task.id)! } : task) };
+    });
+    if (shouldChooseDelegate) window.setTimeout(() => setDelegateTaskId(taskId), 0);
+  };
   const reorderNotebook = (taskId: string, beforeId?: string) => setStore((current) => {
     const moving = current.tasks.find((task) => task.id === taskId); if (!moving) return current;
     const rows = current.tasks.filter((task) => task.inNotebook && task.columnId !== 'done' && task.id !== taskId).sort((a, b) => a.notebookOrder - b.notebookOrder);
@@ -226,7 +235,17 @@ function App() {
   const saveDelegation = (taskId: string, assignee: string, deadline: number | null, newPerson?: string) => {
     const person = (newPerson || assignee).trim();
     if (newPerson?.trim()) { saveTeamName(newPerson); setTeamVersion((value) => value + 1); }
-    setStore((current) => ({ ...current, tasks: current.tasks.map((task) => task.id === taskId ? { ...task, columnId: 'delegated', inNotebook: false, notebookAt: null, assignee: person, deadline, boardOrder: nextBoardOrder(current.tasks, 'delegated', task.city) } : task) }));
+    setStore((current) => ({ ...current, tasks: current.tasks.map((task) => task.id === taskId ? {
+      ...task,
+      columnId: 'delegated',
+      inNotebook: false,
+      notebookAt: null,
+      assignee: person,
+      deadline,
+      waitingPerson: person,
+      returnAt: deadline,
+      boardOrder: nextBoardOrder(current.tasks, 'delegated', task.city),
+    } : task) }));
     setDelegateTaskId(null);
   };
   const requestActivate = (taskId: string) => setStore((current) => ({ ...current, activeTaskId: taskId }));
@@ -272,7 +291,7 @@ function NotebookPage({ tasks, upcoming, activeTaskId, dueItems, now, dragId, se
   setDragId: (id: string | null) => void; createTask: (title: string, project: ProjectId) => unknown; updateTask: (id: string, patch: Partial<Task>) => void; addStep: (id: string, text: string) => void; updateStep: (taskId: string, stepId: string, patch: Partial<TaskStep>) => void; requestActivate: (id: string) => void; reorderNotebook: (id: string, beforeId?: string) => void; openReminder: (target: ReminderTarget) => void; moveToBoard: (id: string, column: BoardColumnId) => void; toggleCompleted: (id: string) => void; finishTask: (id: string) => void; showNow: (id: string) => void;
 }) {
   const [newTask, setNewTask] = useState(''); const [project, setProject] = useState<ProjectId>('none');
-  let waitingDividerShown = false; let completedDividerShown = false;
+  let completedDividerShown = false;
   return <main className="notebook-page v6-notebook">
     <div className="notebook-titlebar"><div><h1>Что сейчас происходит</h1><p>Задача → последние события → следующее действие</p></div></div>
     {dueItems.length > 0 && <section className="returned-panel"><div className="returned-head"><strong>Пора вернуть внимание</strong><span>{dueItems.length}</span></div>{dueItems.slice(0, 8).map((item) => <div className="returned-item" key={item.id}><div><strong>{item.task.title}</strong><small>{item.step ? item.step.text : item.person ? `Жду: ${item.person}` : 'Напоминание'}</small></div><button onClick={() => openReminder({ taskId: item.task.id, stepId: item.step?.id })}>открыть</button></div>)}</section>}
@@ -281,7 +300,6 @@ function NotebookPage({ tasks, upcoming, activeTaskId, dueItems, now, dragId, se
       {tasks.map((task, index) => {
         const waiting = taskIsWaiting(task);
         let divider: React.ReactNode = null;
-        if (waiting && !waitingDividerShown && !task.notebookCompleted) { waitingDividerShown = true; divider = <div className="stream-divider wait-divider">ЖДУ · задача зависла на ответе</div>; }
         if (task.notebookCompleted && !completedDividerShown) { completedDividerShown = true; divider = <div className="stream-divider done-divider">ВЫПОЛНЕНО В ТЕТРАДИ</div>; }
         return <div key={task.id}>{divider}<NotebookRow number={index + 1} task={task} now={now} active={task.id === activeTaskId} waiting={waiting} onDragStart={() => setDragId(task.id)} onDrop={() => dragId && dragId !== task.id && reorderNotebook(dragId, task.id)} updateTask={updateTask} addStep={addStep} updateStep={updateStep} requestActivate={requestActivate} openReminder={openReminder} moveToBoard={moveToBoard} toggleCompleted={toggleCompleted} finishTask={finishTask} /></div>;
       })}
@@ -296,9 +314,9 @@ function NotebookRow({ number, task, now, active, waiting, onDragStart, onDrop, 
   const [step, setStep] = useState(''); const [expanded, setExpanded] = useState(false); const [editing, setEditing] = useState<string | null>(null); const [editText, setEditText] = useState('');
   const visible = expanded ? task.steps : task.steps.slice(-3); const hidden = Math.max(0, task.steps.length - 3);
   return <article className={`notebook-row v6-row project-${task.project} ${waiting ? 'is-waiting' : ''} ${active ? 'active-row' : ''} ${task.notebookCompleted ? 'notebook-done' : ''}`} draggable onDragStart={onDragStart} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); onDrop(); }}>
-    <div className="row-number">{String(number).padStart(2, '0')}</div>
+    <div className="row-number">{number}</div>
     <div className="row-main">
-      <div className="row-task-line"><button className={`notebook-check ${task.notebookCompleted ? 'checked' : ''}`} onClick={() => toggleCompleted(task.id)} title="Отметить выполненной">✓</button><span className="drag-handle" title="Перетащить">⋮⋮</span><textarea className="row-title" rows={1} value={task.title} onChange={(event) => updateTask(task.id, { title: event.target.value })} /><span className="project-mark">{projectLabel(task.project)}</span>{waiting && <button className="waiting-status" onClick={() => openReminder({ taskId: task.id })}>ЖДУ</button>}<span className="last-age">{ageLabel(lastTouched(task), now)}</span></div>
+      <div className="row-task-line"><button className={`notebook-check ${task.notebookCompleted ? 'checked' : ''}`} onClick={() => toggleCompleted(task.id)} title="Отметить выполненной">✓</button><span className="drag-handle" title="Перетащить">⋮⋮</span><textarea className="row-title" rows={1} value={task.title} onChange={(event) => updateTask(task.id, { title: event.target.value })} />{active && <span className="focus-badge">Сейчас</span>}<span className="project-mark">{projectLabel(task.project)}</span>{waiting && <button className="waiting-status" onClick={() => openReminder({ taskId: task.id })}>ЖДУ</button>}<span className="last-age">{ageLabel(lastTouched(task), now)}</span></div>
       <div className="stream-line">
         {hidden > 0 && !expanded && <button className="history-more" onClick={() => setExpanded(true)}>История · {task.steps.length}</button>}
         {visible.map((item) => <div className={`stream-event ${item.waitingPerson ? 'event-waiting' : ''}`} key={item.id}>
@@ -337,24 +355,27 @@ function PeoplePage({ tasks, now, openReminder }: { tasks: Task[]; now: number; 
   const items = useMemo(() => {
     const result: Array<{ id: string; person: string; task: Task; step?: TaskStep; at: number | null }> = [];
     tasks.filter((task) => task.columnId !== 'done').forEach((task) => {
-      if (task.waitingPerson.trim()) result.push({ id: `task-${task.id}`, person: task.waitingPerson.trim(), task, at: task.returnAt });
+      const taskPerson = task.waitingPerson.trim() || (task.columnId === 'delegated' ? task.assignee.trim() : '');
+      const taskAt = task.returnAt ?? (task.columnId === 'delegated' ? task.deadline : null);
+      if (taskPerson) result.push({ id: `task-${task.id}`, person: taskPerson, task, at: taskAt });
       task.steps.filter((step) => step.waitingPerson.trim()).forEach((step) => result.push({ id: `step-${task.id}-${step.id}`, person: step.waitingPerson.trim(), task, step, at: step.remindAt }));
     });
     return result;
   }, [tasks]);
   const groups = useMemo(() => { const map = new Map<string, typeof items>(); items.forEach((item) => map.set(item.person, [...(map.get(item.person) || []), item])); return [...map.entries()]; }, [items]);
-  return <main className="people-page"><div className="page-heading"><div><h1>Жду</h1><p>Задачи и отдельные этапы, где мяч сейчас не у тебя</p></div></div><div className="people-grid">{groups.map(([person, personItems]) => <section className="person-card" key={person}><div className="person-head"><div className="person-avatar">{person.slice(0, 1).toUpperCase()}</div><div><h2>{person}</h2><span>{personItems.length}</span></div></div>{personItems.map((item) => <article className={`person-task ${item.at !== null && item.at <= now ? 'person-due' : ''}`} key={item.id}><div><strong>{item.task.title}</strong>{item.step && <p>{item.step.text}</p>}<small>{item.at ? formatDateTime(item.at) : 'без времени возврата'}</small></div><button onClick={() => openReminder({ taskId: item.task.id, stepId: item.step?.id })}>изменить</button></article>)}</section>)}</div></main>;
+  return <main className="people-page"><div className="page-heading"><div><h1>Жду</h1><p>Задачи, делегирования и отдельные этапы, где мяч сейчас не у тебя</p></div></div><div className="people-grid">{groups.map(([person, personItems]) => <section className="person-card" key={person}><div className="person-head"><div className="person-avatar">{person.slice(0, 1).toUpperCase()}</div><div><h2>{person}</h2><span>{personItems.length}</span></div></div>{personItems.map((item) => <article className={`person-task ${item.at !== null && item.at <= now ? 'person-due' : ''}`} key={item.id}><div><strong>{item.task.title}</strong>{item.step && <p>{item.step.text}</p>}<small>{item.at ? formatDateTime(item.at) : 'без времени возврата'}</small></div><button onClick={() => openReminder({ taskId: item.task.id, stepId: item.step?.id })}>изменить</button></article>)}</section>)}</div></main>;
 }
 
 function ReminderModal({ task, step, teamNames, close, save, clear }: { task: Task; step: TaskStep | null; teamNames: string[]; close: () => void; save: (person: string, at: number | null) => void; clear: () => void }) {
-  const [person, setPerson] = useState(step ? step.waitingPerson : task.waitingPerson); const [when, setWhen] = useState(toDateTimeLocal(step ? step.remindAt : task.returnAt));
+  const [person, setPerson] = useState(step ? step.waitingPerson : (task.waitingPerson || (task.columnId === 'delegated' ? task.assignee : ''))); const [when, setWhen] = useState(toDateTimeLocal(step ? step.remindAt : (task.returnAt ?? (task.columnId === 'delegated' ? task.deadline : null))));
   const quick = (days: number, hour?: number) => { const date = new Date(); date.setDate(date.getDate() + days); if (hour !== undefined) date.setHours(hour, 0, 0, 0); setWhen(toDateTimeLocal(date.getTime())); };
-  return <div className="modal-overlay" onMouseDown={(event) => event.target === event.currentTarget && close()}><form className="modal-card reminder-modal" onSubmit={(event) => { event.preventDefault(); save(person, fromDateTimeLocal(when)); }}><p>{step ? 'НАПОМИНАНИЕ ПО ЭТАПУ' : 'ЖДУ / ВЕРНУТЬ ВНИМАНИЕ'}</p><h2>{task.title}</h2>{step && <div className="modal-step">{step.text}</div>}<label>Кого жду?</label><input list="reminder-team" value={person} onChange={(event) => setPerson(event.target.value)} placeholder="Например: Наташа" /><datalist id="reminder-team">{teamNames.map((name) => <option value={name} key={name} />)}</datalist><label>Когда напомнить?</label><div className="return-options"><button type="button" onClick={() => quick(1)}>завтра</button><button type="button" onClick={() => quick(0, 18)}>сегодня 18:00</button><button type="button" onClick={() => quick(3)}>3 дня</button><button type="button" onClick={() => setWhen('')}>без даты</button></div><input className="datetime-return-input" type="datetime-local" value={when} onChange={(event) => setWhen(event.target.value)} /><div className="modal-actions"><button type="button" className="danger-link" onClick={clear}>Снять Жду</button><button type="button" onClick={close}>Отмена</button><button className="primary">Сохранить</button></div></form></div>;
+  const delegationWait = !step && task.columnId === 'delegated' && Boolean(task.assignee.trim());
+  return <div className="modal-overlay" onMouseDown={(event) => event.target === event.currentTarget && close()}><form className="modal-card reminder-modal" onSubmit={(event) => { event.preventDefault(); save(person, fromDateTimeLocal(when)); }}><p>{step ? 'НАПОМИНАНИЕ ПО ЭТАПУ' : 'ЖДУ / ВЕРНУТЬ ВНИМАНИЕ'}</p><h2>{task.title}</h2>{step && <div className="modal-step">{step.text}</div>}<label>Кого жду?</label><input list="reminder-team" value={person} onChange={(event) => setPerson(event.target.value)} placeholder="Например: Наташа" /><datalist id="reminder-team">{teamNames.map((name) => <option value={name} key={name} />)}</datalist><label>Когда напомнить?</label><div className="return-options"><button type="button" onClick={() => quick(1)}>завтра</button><button type="button" onClick={() => quick(0, 18)}>сегодня 18:00</button><button type="button" onClick={() => quick(3)}>3 дня</button><button type="button" onClick={() => setWhen('')}>без даты</button></div><input className="datetime-return-input" type="datetime-local" value={when} onChange={(event) => setWhen(event.target.value)} /><div className="modal-actions">{delegationWait ? <span className="delegation-wait-note">Делегирование всегда остаётся в ЖДУ</span> : <button type="button" className="danger-link" onClick={clear}>Снять Жду</button>}<button type="button" onClick={close}>Отмена</button><button className="primary">Сохранить</button></div></form></div>;
 }
 
 function DelegateModal({ task, teamNames, close, save }: { task: Task; teamNames: string[]; close: () => void; save: (assignee: string, deadline: number | null, newPerson?: string) => void }) {
   const [assignee, setAssignee] = useState(task.assignee); const [deadline, setDeadline] = useState(toDateTimeLocal(task.deadline)); const [newPerson, setNewPerson] = useState('');
-  return <div className="modal-overlay" onMouseDown={(event) => event.target === event.currentTarget && close()}><form className="modal-card" onSubmit={(event) => { event.preventDefault(); save(assignee, fromDateTimeLocal(deadline), newPerson); }}><p>ДЕЛЕГИРОВАНО</p><h2>{task.title}</h2><label>Кому?</label><select value={assignee} onChange={(event) => setAssignee(event.target.value)}><option value="">Выбрать сотрудника</option>{teamNames.map((name) => <option value={name} key={name}>{name}</option>)}</select><label>Или добавить нового</label><input value={newPerson} onChange={(event) => setNewPerson(event.target.value)} placeholder="Имя нового сотрудника" /><label>Дедлайн</label><input type="datetime-local" value={deadline} onChange={(event) => setDeadline(event.target.value)} /><div className="modal-actions"><button type="button" onClick={close}>Отмена</button><button className="primary" disabled={!assignee && !newPerson.trim()}>Делегировать</button></div></form></div>;
+  return <div className="modal-overlay" onMouseDown={(event) => event.target === event.currentTarget && close()}><form className="modal-card" onSubmit={(event) => { event.preventDefault(); save(assignee, fromDateTimeLocal(deadline), newPerson); }}><p>ДЕЛЕГИРОВАНО = ЖДУ</p><h2>{task.title}</h2><label>Кому?</label><select value={assignee} onChange={(event) => setAssignee(event.target.value)}><option value="">Выбрать сотрудника</option>{teamNames.map((name) => <option value={name} key={name}>{name}</option>)}</select><label>Или добавить нового</label><input value={newPerson} onChange={(event) => setNewPerson(event.target.value)} placeholder="Имя нового сотрудника" /><label>Дедлайн / когда вернуть внимание</label><input type="datetime-local" value={deadline} onChange={(event) => setDeadline(event.target.value)} /><div className="modal-actions"><button type="button" onClick={close}>Отмена</button><button className="primary" disabled={!assignee && !newPerson.trim()}>Делегировать</button></div></form></div>;
 }
 
 function NotebookScheduleModal({ task, close, save }: { task: Task; close: () => void; save: (at: number) => void }) {
