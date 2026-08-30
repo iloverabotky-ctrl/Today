@@ -1,0 +1,7 @@
+.v6-row .row-title{
+  field-sizing:content;
+  height:auto!important;
+  min-height:22px!important;
+  max-height:42px!important;
+  overflow:hidden!important;
+}
