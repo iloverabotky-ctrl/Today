@@ -11,6 +11,7 @@ import './notebook-history.css';
 import './task-focus.css';
 import './notebook-calm.css';
 import './notebook-calm-fix.css';
+import './notebook-calm-tight.css';
 import { initSafeManagementWorkspace } from './management-safe';
 
 const STORAGE_KEY = 'today-cockpit-v2';
