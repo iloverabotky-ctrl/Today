@@ -1,0 +1,301 @@
+/* TODAY — compact work-chat notebook surface.
+   Keeps v6 functionality while restoring the quieter notebook geometry. */
+
+.v6-notebook{max-width:1540px;padding-top:22px}
+.v6-notebook .notebook-titlebar{margin-bottom:8px}
+.v6-notebook .notebook-titlebar h1{font-size:25px}
+.v6-notebook .notebook-titlebar p{font-size:11px;color:#737b87}
+
+/* One process = one calm line. */
+.v6-notebook-list{display:flex;flex-direction:column;gap:0}
+.v6-notebook-list>div{width:100%}
+.v6-row{
+  display:grid;
+  grid-template-columns:28px minmax(0,1fr);
+  align-items:stretch;
+  border:0!important;
+  border-bottom:1px solid #272c33!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  scroll-margin-top:116px;
+}
+.v6-row:hover{background:rgba(255,255,255,.014)!important;border-bottom-color:#363d46!important}
+.v6-row>.row-number{
+  display:flex!important;
+  align-items:flex-start;
+  justify-content:center;
+  padding-top:13px!important;
+  color:#606a75!important;
+  font-size:11px!important;
+  font-weight:650;
+  font-variant-numeric:tabular-nums;
+  user-select:none;
+}
+.v6-row .row-main{
+  min-width:0;
+  display:grid;
+  grid-template-columns:minmax(290px,390px) minmax(0,1fr);
+  grid-template-rows:auto auto;
+  column-gap:12px;
+  align-items:start;
+  padding:7px 4px 7px 7px!important;
+  border:0!important;
+  border-left:2px solid var(--project,transparent)!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.v6-row .row-task-line{
+  grid-column:1;
+  grid-row:1;
+  display:flex;
+  align-items:flex-start;
+  gap:6px;
+  min-width:0;
+  min-height:37px;
+  padding-top:2px;
+}
+
+/* Small completion control, no large button. */
+.v6-row .notebook-check{
+  width:15px!important;
+  height:15px!important;
+  min-width:15px!important;
+  flex:0 0 15px!important;
+  margin:4px 1px 0 0!important;
+  padding:0!important;
+  border:1px solid #46505a!important;
+  border-radius:50%!important;
+  background:transparent!important;
+  color:transparent!important;
+  font-size:9px!important;
+  line-height:13px!important;
+  cursor:pointer;
+}
+.v6-row .notebook-check:hover{border-color:#75808b!important;color:#65717c!important}
+.v6-row .notebook-check.checked{border-color:#65706f!important;background:#1c2922!important;color:#82c49d!important}
+.v6-row .drag-handle{
+  display:block!important;
+  width:13px;
+  margin-top:3px!important;
+  opacity:.28!important;
+  color:#6d7782!important;
+  font-size:11px!important;
+  cursor:grab;
+  user-select:none;
+}
+.v6-row:hover .drag-handle,.v6-row:focus-within .drag-handle{opacity:.9!important}
+
+/* Task title is the anchor of the line. */
+.v6-row .row-title{
+  field-sizing:content;
+  flex:1 1 auto!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:auto!important;
+  min-height:22px!important;
+  max-height:42px!important;
+  resize:none!important;
+  overflow:hidden!important;
+  padding:1px 2px!important;
+  border:0!important;
+  background:transparent!important;
+  color:#69d49a!important;
+  font-size:14px!important;
+  font-weight:730!important;
+  line-height:1.42!important;
+  white-space:pre-wrap!important;
+  box-shadow:none!important;
+}
+.v6-row .row-title:focus{background:transparent!important;box-shadow:none!important}
+/* Project is shown by the thin left stripe, not an extra label. */
+.v6-row .project-mark{display:none!important}
+.v6-row .last-age{margin:5px 1px 0 auto!important;color:#59636e!important;font-size:9px!important;white-space:nowrap}
+.focus-badge{
+  flex:0 0 auto;
+  margin-top:1px;
+  padding:3px 6px;
+  border-radius:5px;
+  background:#17271f;
+  color:#7ed8a6;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.02em;
+}
+.v6-row .waiting-status{
+  flex:0 0 auto;
+  margin-top:1px!important;
+  padding:3px 6px!important;
+  border:1px solid #8b6421!important;
+  border-radius:5px!important;
+  background:#33250e!important;
+  color:#efb94f!important;
+  font-size:9px!important;
+  font-weight:850!important;
+  cursor:pointer;
+}
+
+/* Events continue the task in the same visual row. */
+.v6-row .stream-line{
+  grid-column:2;
+  grid-row:1;
+  display:flex!important;
+  align-items:center!important;
+  align-content:center!important;
+  flex-wrap:wrap!important;
+  gap:0!important;
+  min-width:0;
+  min-height:37px!important;
+  padding:2px 0 0!important;
+  color:#858e99!important;
+}
+.v6-row .stream-event{
+  position:relative;
+  display:flex!important;
+  align-items:center!important;
+  max-width:280px!important;
+  margin:0!important;
+  color:#858e99!important;
+  font-size:12px!important;
+  line-height:1.36!important;
+}
+.v6-row .stream-event:not(:first-child):before{
+  content:'·'!important;
+  display:block!important;
+  margin:0 6px!important;
+  color:#4d5661!important;
+  font-size:15px!important;
+}
+.v6-row .stream-event>span{
+  display:-webkit-box!important;
+  -webkit-box-orient:vertical!important;
+  -webkit-line-clamp:2!important;
+  overflow:hidden!important;
+  overflow-wrap:anywhere!important;
+  color:#858e99!important;
+  font-weight:450!important;
+}
+.v6-row .stream-event:last-of-type>span{color:#e1e6eb!important;font-weight:640!important}
+.v6-row .stream-event.event-waiting>span{color:#e3b967!important;font-weight:650!important}
+.v6-row .history-more{
+  margin-right:5px!important;
+  padding:2px 4px 2px 0!important;
+  border:0!important;
+  background:transparent!important;
+  color:#65707b!important;
+  font-size:10px!important;
+  cursor:pointer;
+}
+.v6-row .history-more:hover{color:#b8c0c9!important}
+.event-edit,.event-remind{
+  opacity:0!important;
+  pointer-events:none!important;
+  margin-left:1px!important;
+  padding:1px 2px!important;
+  border:0!important;
+  background:transparent!important;
+  color:#6f7985!important;
+  font-size:10px!important;
+  cursor:pointer;
+  transition:opacity .12s!important;
+}
+.stream-event:hover .event-edit,.stream-event:hover .event-remind,.stream-event:focus-within .event-edit,.stream-event:focus-within .event-remind{opacity:1!important;pointer-events:auto!important}
+.event-edit:hover,.event-remind:hover{color:#f1f4f6!important}
+.v6-row .step-input-wrap{
+  position:relative!important;
+  display:flex!important;
+  flex:1 1 150px!important;
+  min-width:135px!important;
+  max-width:280px!important;
+  margin:0 0 0 7px!important;
+  padding:0!important;
+}
+.v6-row .step-input-wrap:before{content:'·'!important;display:block!important;margin:4px 6px 0 0!important;color:#4d5661!important;font-size:15px!important}
+.v6-row .step-input-wrap:after{display:none!important}
+.v6-row .step-input-wrap input{
+  width:100%!important;
+  height:28px!important;
+  padding:0 2px!important;
+  border:0!important;
+  border-bottom:1px solid transparent!important;
+  border-radius:0!important;
+  background:transparent!important;
+  color:#c9d0d8!important;
+  font-size:12px!important;
+  box-shadow:none!important;
+}
+.v6-row .step-input-wrap input::placeholder{color:#56606b!important}
+.v6-row .step-input-wrap input:focus{border-bottom-color:#5578a4!important;background:transparent!important}
+
+/* Controls stay out of sight until the row is intentionally touched. */
+.v6-row .row-actions{
+  grid-column:1/-1;
+  grid-row:2;
+  display:flex!important;
+  align-items:center!important;
+  gap:4px!important;
+  max-height:0!important;
+  overflow:hidden!important;
+  padding:0 0 0 34px!important;
+  opacity:0!important;
+  transition:opacity .12s,max-height .12s,padding .12s!important;
+}
+.v6-row:hover .row-actions,.v6-row:focus-within .row-actions{
+  max-height:32px!important;
+  padding-top:2px!important;
+  opacity:1!important;
+}
+.v6-row .row-actions button,.v6-row .row-actions select{
+  border:0!important;
+  border-radius:5px!important;
+  background:#20242a!important;
+  color:#8f99a5!important;
+  padding:4px 6px!important;
+  font-size:9px!important;
+}
+.v6-row .row-actions button:hover,.v6-row .row-actions select:hover{background:#292f37!important;color:#edf0f3!important}
+.v6-row .row-actions button.active{background:#17271f!important;color:#7ed8a6!important}
+
+/* Waiting is conspicuous, but it stays in its original position. */
+.wait-divider{display:none!important}
+.v6-row.is-waiting{
+  opacity:1!important;
+  background:linear-gradient(90deg,rgba(216,158,48,.085),rgba(216,158,48,.02) 48%,transparent 78%)!important;
+  border-bottom-color:#40351f!important;
+}
+.v6-row.is-waiting .row-main{box-shadow:none!important;background:transparent!important}
+.v6-row.is-waiting .row-title{color:#69d49a!important}
+
+/* Focused process is never lost while scrolling. */
+.v6-row.active-row{
+  position:sticky!important;
+  top:66px!important;
+  z-index:40!important;
+  background:#0f1411!important;
+  border-bottom-color:#315a43!important;
+  box-shadow:0 10px 18px rgba(0,0,0,.2)!important;
+}
+.v6-row.active-row .row-main{background:#0f1411!important}
+.v6-row.active-row.is-waiting{background:linear-gradient(90deg,#121a14,rgba(117,86,26,.12))!important}
+
+/* Completed work stays compact and falls to the bottom. */
+.v6-row.notebook-done{opacity:.5!important}
+.v6-row.notebook-done .row-title{text-decoration:line-through!important;color:#7b858f!important}
+.v6-row.notebook-done .stream-event>span{text-decoration:line-through!important;color:#686f78!important}
+.done-divider{padding:14px 0 5px 28px!important;border-bottom:1px solid #272c33!important;color:#69727c!important;font-size:9px!important}
+
+@media(max-width:980px){
+  .v6-row .row-main{grid-template-columns:minmax(250px,330px) minmax(0,1fr);column-gap:8px}
+  .v6-row .stream-event{max-width:220px!important}
+}
+
+@media(max-width:760px){
+  .v6-row{grid-template-columns:24px minmax(0,1fr)}
+  .v6-row .row-main{display:block!important;padding-left:5px!important}
+  .v6-row .row-task-line{min-height:32px!important}
+  .v6-row .stream-line{min-height:31px!important;padding:0 0 1px 34px!important}
+  .v6-row .row-actions{padding-left:34px!important}
+  .v6-row:hover .row-actions,.v6-row:focus-within .row-actions{padding-top:3px!important}
+  .v6-row .stream-event{max-width:220px!important}
+  .v6-row.active-row{top:103px!important}
+}
