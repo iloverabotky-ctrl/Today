@@ -1,0 +1,129 @@
+/* Final quieting pass: default notebook row = task + created time + current action. */
+
+/* Creation time is useful context, but should never compete with the task. */
+.v6-row .task-created-time{
+  flex:0 0 auto!important;
+  margin-left:2px!important;
+  color:#46515b!important;
+  font-size:8px!important;
+  font-weight:560!important;
+  font-variant-numeric:tabular-nums!important;
+  white-space:nowrap!important;
+}
+.v6-row:hover .task-created-time,.v6-row.active-row .task-created-time{color:#5d6873!important}
+
+/* Remove permanent utility lanes. The current action owns the full right side. */
+.v6-row .stream-line,
+.v6-row .stream-line:has(> .stream-event:first-of-type),
+.v6-row .stream-line:has(> .stream-event:nth-of-type(2)),
+.v6-row .stream-line:has(> .stream-event:nth-of-type(3)),
+.v6-row .stream-line:not(:has(> .history-more)){
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  column-gap:0!important;
+}
+.v6-row .stream-event,
+.v6-row .stream-event:first-of-type,
+.v6-row .stream-event:nth-of-type(2),
+.v6-row .stream-event:nth-of-type(3){
+  grid-column:1!important;
+  padding-right:0!important;
+}
+
+/* History is a tiny contextual control, not part of the reading flow. */
+.v6-row .history-more{
+  position:absolute!important;
+  right:34px!important;
+  top:5px!important;
+  z-index:7!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:2px!important;
+  width:28px!important;
+  height:25px!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:0!important;
+  border-radius:5px!important;
+  background:#171c21!important;
+  color:#66717c!important;
+  font-size:9px!important;
+  line-height:1!important;
+  opacity:0!important;
+  pointer-events:none!important;
+  transform:none!important;
+  transition:opacity .11s ease,color .11s ease,background .11s ease!important;
+}
+.v6-row .history-more:after{display:none!important}
+.v6-row:hover .history-more,.v6-row:focus-within .history-more,.v6-row .history-more.open{
+  opacity:.86!important;
+  pointer-events:auto!important;
+}
+.v6-row .history-more:hover,.v6-row .history-more.open{background:#20262d!important;color:#c0c7ce!important}
+
+/* Next action is just a plus and appears only when this row is intentionally touched. */
+.v6-row .next-step-trigger{
+  position:absolute!important;
+  right:3px!important;
+  top:5px!important;
+  z-index:7!important;
+  display:grid!important;
+  place-items:center!important;
+  width:26px!important;
+  height:25px!important;
+  margin:0!important;
+  padding:0!important;
+  border-radius:5px!important;
+  background:#171c21!important;
+  color:#66717c!important;
+  font-size:15px!important;
+  line-height:1!important;
+  text-align:center!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+.v6-row:hover .next-step-trigger,.v6-row:focus-within .next-step-trigger{
+  opacity:.86!important;
+  pointer-events:auto!important;
+}
+.v6-row .next-step-trigger:hover{background:#20262d!important;color:#c8d0d8!important}
+.v6-row .next-step-trigger.no-current{display:none!important}
+
+/* When the plus is pressed, give the input real room only for that moment. */
+.v6-row .stream-line:has(> .step-input-wrap){
+  grid-template-columns:minmax(0,1fr) minmax(145px,190px)!important;
+  column-gap:9px!important;
+}
+.v6-row .stream-line:has(> .step-input-wrap) .stream-event{grid-column:1!important}
+.v6-row .step-input-wrap{
+  position:static!important;
+  grid-column:2!important;
+  grid-row:1!important;
+  width:100%!important;
+}
+
+/* The current action remains readable even when contextual controls appear. */
+.v6-row:hover .stream-event,.v6-row:focus-within .stream-event{padding-right:66px!important}
+.v6-row .stream-line:has(> .step-input-wrap) .stream-event{padding-right:0!important}
+
+@media(pointer:coarse){
+  /* Touch has no hover: keep tiny controls available, but visually restrained. */
+  .v6-row .history-more,.v6-row .next-step-trigger{opacity:.5!important;pointer-events:auto!important}
+}
+
+@media(max-width:760px){
+  .v6-row .stream-line,
+  .v6-row .stream-line:has(> .stream-event:first-of-type),
+  .v6-row .stream-line:not(:has(> .history-more)){
+    position:relative!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  .v6-row .history-more{right:31px!important;top:3px!important}
+  .v6-row .next-step-trigger{right:1px!important;top:3px!important}
+  .v6-row .stream-line:has(> .step-input-wrap){grid-template-columns:minmax(0,1fr)!important}
+  .v6-row .step-input-wrap{grid-column:1!important;margin-top:5px!important}
+  .v6-row .stream-line:has(> .step-input-wrap) .stream-event{padding-right:0!important}
+}
