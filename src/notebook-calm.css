@@ -1,0 +1,368 @@
+/* TODAY calm notebook — default view is only Task → Now.
+   Everything else appears only when the user asks for it. */
+
+/* Quieter page chrome. */
+.v6-notebook{max-width:1480px!important;padding-top:18px!important}
+.v6-notebook .notebook-titlebar{margin:0 0 10px!important}
+.v6-notebook .notebook-titlebar h1{font-size:22px!important;letter-spacing:-.025em!important}
+.v6-notebook .notebook-titlebar p{margin-top:2px!important;color:#535d68!important;font-size:10px!important}
+
+/* Returned attention no longer occupies the page by default. */
+.returned-panel.returned-collapsed{
+  margin:0 0 10px!important;
+  padding:0!important;
+  border:1px solid #292f36!important;
+  border-radius:8px!important;
+  background:#111418!important;
+  overflow:hidden!important;
+}
+.returned-collapsed>summary{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  min-height:34px!important;
+  padding:0 10px!important;
+  cursor:pointer!important;
+  list-style:none!important;
+  color:#858f9a!important;
+  font-size:10px!important;
+}
+.returned-collapsed>summary::-webkit-details-marker{display:none!important}
+.returned-collapsed>summary strong{font-size:10px!important;font-weight:700!important;color:#9ca5af!important}
+.returned-collapsed>summary span{display:grid!important;place-items:center!important;min-width:18px!important;height:18px!important;border-radius:9px!important;background:#222931!important;color:#bec6cf!important;font-size:9px!important}
+.returned-collapsed[open]>summary{border-bottom:1px solid #252b32!important}
+.returned-items{padding:5px 8px 7px!important}
+.returned-collapsed .returned-item{min-height:34px!important;padding:5px 3px!important}
+
+/* New capture stays present, but visually quiet. */
+.v6-new-task{min-height:38px!important;margin-bottom:5px!important;border-color:#272d34!important;background:#101317!important}
+.v6-new-task:focus-within{border-color:#35424f!important;background:#11161b!important}
+
+/* One clean line per task. */
+.v6-notebook-list{gap:0!important}
+.v6-row{
+  --task-zone:35fr;
+  --now-zone:65fr;
+  min-height:52px!important;
+  border-bottom:1px solid #242a30!important;
+  background:transparent!important;
+  transition:background .12s,border-color .12s!important;
+}
+.v6-row:hover{background:rgba(255,255,255,.012)!important;border-bottom-color:#313840!important}
+.v6-row>.row-number{padding-top:15px!important;color:#4f5964!important;font-size:10px!important}
+.v6-row .row-main{
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:minmax(265px,var(--task-zone)) minmax(0,var(--now-zone))!important;
+  grid-template-rows:auto auto!important;
+  column-gap:18px!important;
+  min-width:0!important;
+  padding:8px 34px 8px 7px!important;
+  border-left:0!important;
+  background:transparent!important;
+}
+
+/* Left: task only. */
+.v6-row .row-task-line{
+  grid-column:1!important;
+  grid-row:1!important;
+  min-height:36px!important;
+  align-items:center!important;
+  gap:6px!important;
+  padding:0!important;
+}
+.v6-row .notebook-check{margin-top:0!important;opacity:.58!important}
+.v6-row:hover .notebook-check,.v6-row:focus-within .notebook-check,.v6-row.active-row .notebook-check{opacity:1!important}
+.v6-row .drag-handle{margin-top:0!important;opacity:0!important;transition:opacity .12s!important}
+.v6-row:hover .drag-handle,.v6-row:focus-within .drag-handle{opacity:.65!important}
+.v6-row .row-title-open{
+  min-height:20px!important;
+  max-height:40px!important;
+  padding:0!important;
+  color:#77d8a0!important;
+  font-size:13px!important;
+  font-weight:680!important;
+  line-height:1.42!important;
+}
+.v6-row .row-title-open:hover{color:#9be9bb!important}
+.open-task-button{display:none!important}
+
+/* Project = one quiet dot, not a label or a stripe. */
+.project-dot{
+  flex:0 0 6px!important;
+  width:6px!important;
+  height:6px!important;
+  margin-left:1px!important;
+  border-radius:50%!important;
+  opacity:.82!important;
+}
+.project-dot.dot-pasta{background:#d6b34f!important}
+.project-dot.dot-kvep{background:#8f74e9!important}
+
+/* Waiting = a small state, not a yellow task. */
+.v6-row.is-waiting{background:transparent!important;border-bottom-color:#2b2d2d!important}
+.v6-row.is-waiting .row-main,.v6-row.active-row.is-waiting .row-main{background:transparent!important}
+.v6-row .waiting-status{
+  margin:0 0 0 2px!important;
+  padding:2px 5px!important;
+  border:0!important;
+  border-radius:4px!important;
+  background:rgba(194,142,43,.11)!important;
+  color:#c99b49!important;
+  font-size:8px!important;
+  font-weight:760!important;
+  white-space:nowrap!important;
+}
+.v6-row .stale-age{
+  flex:0 0 auto!important;
+  margin-left:auto!important;
+  color:#6a6260!important;
+  font-size:8px!important;
+  white-space:nowrap!important;
+}
+
+/* Right: only the current action. History gets a tiny utility lane. */
+.v6-row .stream-line,
+.v6-row .stream-line:has(> .stream-event:first-of-type),
+.v6-row .stream-line:has(> .stream-event:nth-of-type(2)),
+.v6-row .stream-line:has(> .stream-event:nth-of-type(3)){
+  grid-column:2!important;
+  grid-row:1!important;
+  display:grid!important;
+  grid-template-columns:62px minmax(0,1fr) minmax(118px,170px)!important;
+  align-items:center!important;
+  column-gap:8px!important;
+  row-gap:0!important;
+  min-height:36px!important;
+  padding:0!important;
+}
+.v6-row .stream-line:not(:has(> .history-more)){
+  grid-template-columns:0 minmax(0,1fr) minmax(118px,170px)!important;
+}
+.v6-row .history-more{
+  grid-column:1!important;
+  grid-row:1!important;
+  align-self:center!important;
+  width:auto!important;
+  max-width:58px!important;
+  margin:0!important;
+  padding:3px 4px!important;
+  border:0!important;
+  border-radius:4px!important;
+  background:transparent!important;
+  color:#505b67!important;
+  font-size:8px!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.v6-row .history-more:hover,.v6-row .history-more.open{background:#1a2026!important;color:#89939e!important}
+.v6-row .stream-event,
+.v6-row .stream-event:first-of-type,
+.v6-row .stream-event:nth-of-type(2),
+.v6-row .stream-event:nth-of-type(3){
+  grid-column:2!important;
+  grid-row:1!important;
+  min-height:34px!important;
+  width:100%!important;
+  max-width:none!important;
+  padding:0 58px 0 0!important;
+  margin:0!important;
+  align-items:center!important;
+  border:0!important;
+}
+.v6-row .stream-event:before{display:none!important}
+.v6-row .current-action-text{
+  display:-webkit-box!important;
+  -webkit-box-orient:vertical!important;
+  -webkit-line-clamp:2!important;
+  width:100%!important;
+  max-height:40px!important;
+  overflow:hidden!important;
+  padding:2px 0!important;
+  border:0!important;
+  background:transparent!important;
+  color:#dce2e7!important;
+  font-size:13px!important;
+  font-weight:570!important;
+  line-height:1.42!important;
+  text-align:left!important;
+  cursor:text!important;
+}
+.v6-row .current-action-text:hover{color:#f1f4f6!important}
+.v6-row .empty-current{
+  grid-column:2!important;
+  grid-row:1!important;
+  justify-self:start!important;
+  border:0!important;
+  background:transparent!important;
+  color:#525c67!important;
+  padding:2px 0!important;
+  font-size:11px!important;
+  cursor:pointer!important;
+}
+.v6-row .empty-current:hover{color:#89939e!important}
+
+/* Next step exists, but does not demand attention until the row is touched. */
+.v6-row .next-step-trigger{
+  grid-column:3!important;
+  grid-row:1!important;
+  justify-self:stretch!important;
+  height:27px!important;
+  padding:0 6px!important;
+  border:0!important;
+  border-radius:5px!important;
+  background:transparent!important;
+  color:#4c5661!important;
+  font-size:9px!important;
+  text-align:left!important;
+  opacity:0!important;
+  pointer-events:none!important;
+  cursor:pointer!important;
+  transition:opacity .12s,background .12s,color .12s!important;
+}
+.v6-row:hover .next-step-trigger,.v6-row:focus-within .next-step-trigger,.v6-row.active-row .next-step-trigger,.v6-row .next-step-trigger.no-current{opacity:1!important;pointer-events:auto!important}
+.v6-row .next-step-trigger:hover{background:#191f25!important;color:#949ea9!important}
+.v6-row .step-input-wrap{
+  grid-column:3!important;
+  grid-row:1!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  min-height:30px!important;
+  margin:0!important;
+  padding:0!important;
+}
+.v6-row .step-input-wrap:before{display:none!important}
+.v6-row .step-input-wrap input{height:30px!important;padding:2px 5px!important;border:1px solid #344250!important;border-radius:5px!important;background:#13181e!important;font-size:11px!important}
+
+/* Stage buttons are purely contextual. */
+.v6-row .stream-event .event-edit,.v6-row .stream-event .event-remind,.v6-row .stream-event .event-delete{top:8px!important;background:#171c21!important}
+
+/* History slides under the row and never disturbs the Task → Now grid. */
+.v6-row .notebook-history-drawer{
+  grid-column:1/-1!important;
+  grid-row:2!important;
+  margin:0 0 0 0!important;
+}
+.v6-row .notebook-history-inner{margin-left:35%!important;max-width:65%!important}
+
+/* All secondary actions live behind one ellipsis. */
+.v6-row .row-more{
+  position:absolute!important;
+  top:14px!important;
+  right:5px!important;
+  z-index:12!important;
+}
+.v6-row .row-more>summary{
+  display:grid!important;
+  place-items:center!important;
+  width:24px!important;
+  height:24px!important;
+  border-radius:6px!important;
+  list-style:none!important;
+  background:transparent!important;
+  color:#4e5964!important;
+  font-size:11px!important;
+  opacity:0!important;
+  cursor:pointer!important;
+}
+.v6-row .row-more>summary::-webkit-details-marker{display:none!important}
+.v6-row:hover .row-more>summary,.v6-row:focus-within .row-more>summary,.v6-row .row-more[open]>summary{opacity:1!important}
+.v6-row .row-more>summary:hover,.v6-row .row-more[open]>summary{background:#1d2329!important;color:#aab3bd!important}
+.v6-row .row-more-menu{
+  position:absolute!important;
+  right:0!important;
+  top:28px!important;
+  width:180px!important;
+  padding:5px!important;
+  border:1px solid #303740!important;
+  border-radius:8px!important;
+  background:#15191e!important;
+  box-shadow:0 14px 34px rgba(0,0,0,.38)!important;
+}
+.v6-row .row-more-menu button,.v6-row .row-more-menu select{
+  display:block!important;
+  width:100%!important;
+  min-height:30px!important;
+  box-sizing:border-box!important;
+  padding:5px 7px!important;
+  border:0!important;
+  border-radius:5px!important;
+  background:transparent!important;
+  color:#939da8!important;
+  font-size:10px!important;
+  text-align:left!important;
+}
+.v6-row .row-more-menu button:hover,.v6-row .row-more-menu select:hover{background:#20262d!important;color:#eef2f5!important}
+.v6-row .row-actions{display:none!important}
+
+/* The single active task is the only thing allowed to be a little louder. */
+.v6-row.active-row{
+  position:sticky!important;
+  top:64px!important;
+  z-index:35!important;
+  min-height:66px!important;
+  margin:0!important;
+  background:linear-gradient(90deg,#101713 0%,#0f1316 72%)!important;
+  border-top:1px solid #294535!important;
+  border-bottom:1px solid #315340!important;
+  box-shadow:0 12px 24px rgba(0,0,0,.22)!important;
+}
+.v6-row.active-row .row-main{padding-top:13px!important;padding-bottom:13px!important}
+.v6-row.active-row .row-title-open{font-size:14px!important;color:#8ee5b1!important}
+.v6-row.active-row .current-action-text{font-size:15px!important;font-weight:650!important;color:#f0f4f2!important}
+.v6-row.active-row .focus-badge{
+  padding:2px 5px!important;
+  background:transparent!important;
+  color:#6faf89!important;
+  font-size:7px!important;
+  letter-spacing:.1em!important;
+}
+
+/* Completed work is one quiet summary until explicitly opened. */
+.completed-today{margin:7px 0 12px 28px!important;border-bottom:1px solid #242a30!important}
+.completed-summary{
+  display:flex!important;
+  align-items:center!important;
+  gap:7px!important;
+  width:100%!important;
+  min-height:34px!important;
+  padding:0 7px!important;
+  border:0!important;
+  background:transparent!important;
+  color:#5f6974!important;
+  font-size:9px!important;
+  text-align:left!important;
+  cursor:pointer!important;
+}
+.completed-summary:hover{color:#89939e!important;background:rgba(255,255,255,.01)!important}
+.completed-summary span{margin-left:auto!important;color:#46505a!important}
+.completed-drawer{border-top:1px solid #20262c!important}
+.completed-drawer .v6-row{opacity:.42!important}
+
+/* Old dividers are intentionally gone. */
+.done-divider,.wait-divider{display:none!important}
+
+@media(max-width:1050px){
+  .v6-row .row-main{grid-template-columns:minmax(230px,38fr) minmax(0,62fr)!important;column-gap:12px!important}
+  .v6-row .stream-line,.v6-row .stream-line:has(> .stream-event:first-of-type){grid-template-columns:52px minmax(0,1fr) minmax(105px,145px)!important}
+  .v6-row .notebook-history-inner{margin-left:38%!important;max-width:62%!important}
+}
+
+@media(max-width:760px){
+  .v6-row .row-main{display:block!important;padding:8px 32px 8px 5px!important}
+  .v6-row .row-task-line{min-height:30px!important}
+  .v6-row .stream-line,.v6-row .stream-line:has(> .stream-event:first-of-type),.v6-row .stream-line:not(:has(> .history-more)){
+    display:grid!important;
+    grid-template-columns:50px minmax(0,1fr)!important;
+    padding:2px 0 0 34px!important;
+    min-height:34px!important;
+  }
+  .v6-row .stream-event,.v6-row .stream-event:first-of-type{grid-column:2!important;max-width:none!important;padding-right:0!important}
+  .v6-row .next-step-trigger,.v6-row .step-input-wrap{grid-column:2!important;grid-row:2!important;margin-top:2px!important}
+  .v6-row .next-step-trigger{opacity:1!important;pointer-events:auto!important}
+  .v6-row .notebook-history-inner{margin-left:34px!important;max-width:none!important}
+  .v6-row.active-row{top:101px!important}
+  .completed-today{margin-left:24px!important}
+}
