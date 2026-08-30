@@ -7,6 +7,7 @@ import './v6.css';
 import './v6-fixes.css';
 import './notebook-classic.css';
 import './notebook-stage-fix.css';
+import './notebook-history.css';
 import './task-focus.css';
 import { initSafeManagementWorkspace } from './management-safe';
 
