@@ -133,3 +133,16 @@
   .task-focus-step-actions{grid-column:2;justify-self:end;padding-top:0}
   .task-focus-next-row{display:block}.task-focus-next button{margin-top:10px;width:100%}
 }
+
+/* In the notebook the task title is now the doorway into the task. */
+.v6-row .row-title-open{
+  display:-webkit-box!important;
+  -webkit-box-orient:vertical!important;
+  -webkit-line-clamp:2!important;
+  overflow:hidden!important;
+  text-align:left!important;
+  cursor:pointer!important;
+  border:0!important;
+  background:transparent!important;
+}
+.v6-row .row-title-open:hover{color:#8ae6b2!important}
