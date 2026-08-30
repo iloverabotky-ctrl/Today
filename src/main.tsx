@@ -2,12 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles.css';
-import './status-separators.css';
-import './waiting-picker.css';
 import './team-oneonone.css';
-import './work-chat.css';
-import './work-chat-fixes.css';
-import { initWorkChatExperience } from './work-chat';
+import './v6.css';
 import { initSafeManagementWorkspace } from './management-safe';
 
 const STORAGE_KEY = 'today-cockpit-v2';
@@ -17,28 +13,19 @@ try {
   if (raw) {
     const replaceTerm = (value: unknown): unknown => {
       if (typeof value === 'string') {
-        return value
-          .replace(/Стимулятор/g, 'Сигнал')
-          .replace(/стимулятор/g, 'сигнал');
+        return value.replace(/Стимулятор/g, 'Сигнал').replace(/стимулятор/g, 'сигнал');
       }
       if (Array.isArray(value)) return value.map(replaceTerm);
       if (value && typeof value === 'object') {
-        return Object.fromEntries(
-          Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, replaceTerm(item)]),
-        );
+        return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, replaceTerm(item)]));
       }
       return value;
     };
-
     localStorage.setItem(STORAGE_KEY, JSON.stringify(replaceTerm(JSON.parse(raw))));
   }
 } catch {
-  // Keep loading TODAY even if old local data is malformed.
+  // Keep TODAY loading even if an old local backup is malformed.
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
-
-window.setTimeout(() => {
-  initWorkChatExperience();
-  initSafeManagementWorkspace();
-}, 0);
+window.setTimeout(() => initSafeManagementWorkspace(), 0);
