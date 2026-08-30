@@ -1,0 +1,41 @@
+/* Small interaction corrections for the calm notebook. */
+.v6-row .notebook-history-text{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  color:#7f8993!important;
+  font-size:11px!important;
+  line-height:1.45!important;
+  text-align:left!important;
+  overflow-wrap:anywhere!important;
+  cursor:text!important;
+}
+.v6-row .notebook-history-text:hover{color:#a7b0b9!important}
+.v6-row .notebook-history-item.event-waiting .notebook-history-text{color:#a88b55!important}
+
+/* Keep the inline editor in the same visual 'Now' slot. */
+.v6-row .stream-event form{width:100%!important;min-width:0!important}
+.v6-row .stream-event form input{
+  width:100%!important;
+  min-width:0!important;
+  height:31px!important;
+  box-sizing:border-box!important;
+  padding:4px 7px!important;
+  border:1px solid #40566d!important;
+  border-radius:6px!important;
+  background:#141a20!important;
+  color:#edf1f4!important;
+  font-size:12px!important;
+  outline:none!important;
+}
+
+/* Browser button/select defaults must not make the hidden action menu loud. */
+.v6-row .row-more-menu select{appearance:auto!important}
+.v6-row .row-more-menu option{background:#15191e!important;color:#d2d8de!important}
+
+@media(max-width:760px){
+  .v6-row .row-more>summary{opacity:.7!important}
+}
