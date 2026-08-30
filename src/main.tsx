@@ -7,6 +7,7 @@ import './v6.css';
 import './v6-fixes.css';
 import './notebook-classic.css';
 import './notebook-stage-fix.css';
+import './task-focus.css';
 import { initSafeManagementWorkspace } from './management-safe';
 
 const STORAGE_KEY = 'today-cockpit-v2';

@@ -120,6 +120,7 @@ function App() {
   const [reminderTarget, setReminderTarget] = useState<ReminderTarget>(null);
   const [delegateTaskId, setDelegateTaskId] = useState<string | null>(null);
   const [scheduleTaskId, setScheduleTaskId] = useState<string | null>(null);
+  const [taskFocusId, setTaskFocusId] = useState<string | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickText, setQuickText] = useState('');
   const [teamVersion, setTeamVersion] = useState(0);
@@ -152,7 +153,7 @@ function App() {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable;
-      if (event.key === 'Escape') { setQuickOpen(false); setReminderTarget(null); setDelegateTaskId(null); setScheduleTaskId(null); }
+      if (event.key === 'Escape') { setQuickOpen(false); setReminderTarget(null); setDelegateTaskId(null); setScheduleTaskId(null); setTaskFocusId(null); }
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         event.preventDefault(); setPage('notebook');
         window.setTimeout(() => document.querySelector<HTMLInputElement>('#new-notebook-task')?.focus(), 0);
@@ -191,6 +192,7 @@ function App() {
     setStore((current) => ({ ...current, tasks: current.tasks.map((task) => task.id === taskId ? { ...task, steps: [...task.steps, { id: newId(), text: clean, createdAt: Date.now(), waitingPerson: '', remindAt: null }] } : task) }));
   };
   const updateStep = (taskId: string, stepId: string, patch: Partial<TaskStep>) => setStore((current) => ({ ...current, tasks: current.tasks.map((task) => task.id === taskId ? { ...task, steps: task.steps.map((step) => step.id === stepId ? { ...step, ...patch } : step) } : task) }));
+  const deleteStep = (taskId: string, stepId: string) => setStore((current) => ({ ...current, tasks: current.tasks.map((task) => task.id === taskId ? { ...task, steps: task.steps.filter((step) => step.id !== stepId) } : task) }));
   const saveReminder = (target: ReminderTarget, person: string, at: number | null) => {
     if (!target) return;
     if (target.stepId) updateStep(target.taskId, target.stepId, { waitingPerson: person.trim(), remindAt: at });
@@ -255,6 +257,8 @@ function App() {
     window.alert(permission === 'granted' ? 'Уведомления включены.' : 'Браузер не дал разрешение на уведомления.');
   };
 
+  const openTaskFocus = (taskId: string) => { setStore((current) => ({ ...current, activeTaskId: taskId })); setTaskFocusId(taskId); };
+  const focusTask = taskFocusId ? store.tasks.find((task) => task.id === taskFocusId) || null : null;
   const reminderTask = reminderTarget ? store.tasks.find((task) => task.id === reminderTarget.taskId) || null : null;
   const reminderStep = reminderTask && reminderTarget?.stepId ? reminderTask.steps.find((step) => step.id === reminderTarget.stepId) || null : null;
   const delegateTask = delegateTaskId ? store.tasks.find((task) => task.id === delegateTaskId) || null : null;
@@ -271,9 +275,10 @@ function App() {
       <div className="top-actions"><button className="quick-button" onClick={() => setQuickOpen(true)}>＋ <span>Быстро</span><kbd>N</kbd></button><details className="more-menu"><summary>•••</summary><div className="more-popover"><button className="menu-action" onClick={enableNotifications}>Включить уведомления</button></div></details></div>
     </header>
 
-    {page === 'notebook' && <NotebookPage tasks={notebookReady} upcoming={notebookUpcoming} activeTaskId={store.activeTaskId} dueItems={dueItems} now={now} dragId={dragNotebookId} setDragId={setDragNotebookId} createTask={(title, project) => createTask(title, 'today', boardCity, project, true)} updateTask={updateTask} addStep={addStep} updateStep={updateStep} requestActivate={requestActivate} reorderNotebook={reorderNotebook} openReminder={setReminderTarget} moveToBoard={moveNotebookToBoard} toggleCompleted={toggleNotebookCompleted} finishTask={finishTask} showNow={(id) => moveToNotebook(id, Date.now())} />}
+    {page === 'notebook' && <NotebookPage tasks={notebookReady} upcoming={notebookUpcoming} activeTaskId={store.activeTaskId} dueItems={dueItems} now={now} dragId={dragNotebookId} setDragId={setDragNotebookId} createTask={(title, project) => createTask(title, 'today', boardCity, project, true)} updateTask={updateTask} addStep={addStep} updateStep={updateStep} deleteStep={deleteStep} openTask={openTaskFocus} requestActivate={requestActivate} reorderNotebook={reorderNotebook} openReminder={setReminderTarget} moveToBoard={moveNotebookToBoard} toggleCompleted={toggleNotebookCompleted} finishTask={finishTask} showNow={(id) => moveToNotebook(id, Date.now())} />}
     {page === 'board' && <BoardPage store={store} city={boardCity} setCity={setBoardCity} now={now} dragId={dragBoardId} setDragId={setDragBoardId} createTask={createTask} moveTask={moveBoardTask} openSchedule={setScheduleTaskId} openReminder={(id) => setReminderTarget({ taskId: id })} openDelegate={setDelegateTaskId} finishTask={finishTask} />}
     {page === 'people' && <PeoplePage tasks={store.tasks} now={now} openReminder={setReminderTarget} />}
+    {focusTask && <TaskFocusView task={focusTask} now={now} close={() => setTaskFocusId(null)} updateTask={updateTask} addStep={addStep} updateStep={updateStep} deleteStep={deleteStep} openReminder={setReminderTarget} toggleCompleted={toggleNotebookCompleted} finishTask={finishTask} />}
 
     {quickOpen && <QuickCapture value={quickText} setValue={setQuickText} inputRef={quickRef} close={() => { setQuickOpen(false); setQuickText(''); }} submit={() => { if (!quickText.trim()) return; createTask(quickText, 'pool', boardCity); setQuickText(''); setQuickOpen(false); }} />}
     {reminderTask && <ReminderModal task={reminderTask} step={reminderStep} teamNames={teamNames} close={() => setReminderTarget(null)} save={(person, at) => saveReminder(reminderTarget, person, at)} clear={() => clearReminder(reminderTarget)} />}
@@ -286,9 +291,9 @@ function ProjectPicker({ value, setValue }: { value: ProjectId; setValue: (value
   return <div className="project-picker"><button type="button" className={value === 'none' ? 'active' : ''} onClick={() => setValue('none')}>Без проекта</button><button type="button" className={`pasta ${value === 'pasta' ? 'active' : ''}`} onClick={() => setValue('pasta')}>Паста</button><button type="button" className={`kvep ${value === 'kvep' ? 'active' : ''}`} onClick={() => setValue('kvep')}>КВЭП</button></div>;
 }
 
-function NotebookPage({ tasks, upcoming, activeTaskId, dueItems, now, dragId, setDragId, createTask, updateTask, addStep, updateStep, requestActivate, reorderNotebook, openReminder, moveToBoard, toggleCompleted, finishTask, showNow }: {
+function NotebookPage({ tasks, upcoming, activeTaskId, dueItems, now, dragId, setDragId, createTask, updateTask, addStep, updateStep, deleteStep, openTask, requestActivate, reorderNotebook, openReminder, moveToBoard, toggleCompleted, finishTask, showNow }: {
   tasks: Task[]; upcoming: Task[]; activeTaskId: string | null; dueItems: Array<{ id: string; task: Task; step?: TaskStep; person: string; at: number }>; now: number; dragId: string | null;
-  setDragId: (id: string | null) => void; createTask: (title: string, project: ProjectId) => unknown; updateTask: (id: string, patch: Partial<Task>) => void; addStep: (id: string, text: string) => void; updateStep: (taskId: string, stepId: string, patch: Partial<TaskStep>) => void; requestActivate: (id: string) => void; reorderNotebook: (id: string, beforeId?: string) => void; openReminder: (target: ReminderTarget) => void; moveToBoard: (id: string, column: BoardColumnId) => void; toggleCompleted: (id: string) => void; finishTask: (id: string) => void; showNow: (id: string) => void;
+  setDragId: (id: string | null) => void; createTask: (title: string, project: ProjectId) => unknown; updateTask: (id: string, patch: Partial<Task>) => void; addStep: (id: string, text: string) => void; updateStep: (taskId: string, stepId: string, patch: Partial<TaskStep>) => void; deleteStep: (taskId: string, stepId: string) => void; openTask: (id: string) => void; requestActivate: (id: string) => void; reorderNotebook: (id: string, beforeId?: string) => void; openReminder: (target: ReminderTarget) => void; moveToBoard: (id: string, column: BoardColumnId) => void; toggleCompleted: (id: string) => void; finishTask: (id: string) => void; showNow: (id: string) => void;
 }) {
   const [newTask, setNewTask] = useState(''); const [project, setProject] = useState<ProjectId>('none');
   let completedDividerShown = false;
@@ -301,26 +306,26 @@ function NotebookPage({ tasks, upcoming, activeTaskId, dueItems, now, dragId, se
         const waiting = taskIsWaiting(task);
         let divider: React.ReactNode = null;
         if (task.notebookCompleted && !completedDividerShown) { completedDividerShown = true; divider = <div className="stream-divider done-divider">ВЫПОЛНЕНО В ТЕТРАДИ</div>; }
-        return <div key={task.id}>{divider}<NotebookRow number={index + 1} task={task} now={now} active={task.id === activeTaskId} waiting={waiting} onDragStart={() => setDragId(task.id)} onDrop={() => dragId && dragId !== task.id && reorderNotebook(dragId, task.id)} updateTask={updateTask} addStep={addStep} updateStep={updateStep} requestActivate={requestActivate} openReminder={openReminder} moveToBoard={moveToBoard} toggleCompleted={toggleCompleted} finishTask={finishTask} /></div>;
+        return <div key={task.id}>{divider}<NotebookRow number={index + 1} task={task} now={now} active={task.id === activeTaskId} waiting={waiting} onDragStart={() => setDragId(task.id)} onDrop={() => dragId && dragId !== task.id && reorderNotebook(dragId, task.id)} updateTask={updateTask} addStep={addStep} updateStep={updateStep} deleteStep={deleteStep} openTask={openTask} requestActivate={requestActivate} openReminder={openReminder} moveToBoard={moveToBoard} toggleCompleted={toggleCompleted} finishTask={finishTask} /></div>;
       })}
     </section>
     {upcoming.length > 0 && <section className="upcoming-notebook"><h3>Запланировано в Тетрадь</h3>{upcoming.map((task) => <div key={task.id}><strong>{task.title}</strong><span>{formatDateTime(task.notebookAt)}</span><button onClick={() => showNow(task.id)}>показать сейчас</button></div>)}</section>}
   </main>;
 }
 
-function NotebookRow({ number, task, now, active, waiting, onDragStart, onDrop, updateTask, addStep, updateStep, requestActivate, openReminder, moveToBoard, toggleCompleted, finishTask }: {
-  number: number; task: Task; now: number; active: boolean; waiting: boolean; onDragStart: () => void; onDrop: () => void; updateTask: (id: string, patch: Partial<Task>) => void; addStep: (id: string, text: string) => void; updateStep: (taskId: string, stepId: string, patch: Partial<TaskStep>) => void; requestActivate: (id: string) => void; openReminder: (target: ReminderTarget) => void; moveToBoard: (id: string, column: BoardColumnId) => void; toggleCompleted: (id: string) => void; finishTask: (id: string) => void;
+function NotebookRow({ number, task, now, active, waiting, onDragStart, onDrop, updateTask, addStep, updateStep, deleteStep, openTask, requestActivate, openReminder, moveToBoard, toggleCompleted, finishTask }: {
+  number: number; task: Task; now: number; active: boolean; waiting: boolean; onDragStart: () => void; onDrop: () => void; updateTask: (id: string, patch: Partial<Task>) => void; addStep: (id: string, text: string) => void; updateStep: (taskId: string, stepId: string, patch: Partial<TaskStep>) => void; deleteStep: (taskId: string, stepId: string) => void; openTask: (id: string) => void; requestActivate: (id: string) => void; openReminder: (target: ReminderTarget) => void; moveToBoard: (id: string, column: BoardColumnId) => void; toggleCompleted: (id: string) => void; finishTask: (id: string) => void;
 }) {
   const [step, setStep] = useState(''); const [expanded, setExpanded] = useState(false); const [editing, setEditing] = useState<string | null>(null); const [editText, setEditText] = useState('');
   const visible = expanded ? task.steps : task.steps.slice(-3); const hidden = Math.max(0, task.steps.length - 3);
   return <article className={`notebook-row v6-row project-${task.project} ${waiting ? 'is-waiting' : ''} ${active ? 'active-row' : ''} ${task.notebookCompleted ? 'notebook-done' : ''}`} draggable onDragStart={onDragStart} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); onDrop(); }}>
     <div className="row-number">{number}</div>
     <div className="row-main">
-      <div className="row-task-line"><button className={`notebook-check ${task.notebookCompleted ? 'checked' : ''}`} onClick={() => toggleCompleted(task.id)} title="Отметить выполненной">✓</button><span className="drag-handle" title="Перетащить">⋮⋮</span><textarea className="row-title" rows={1} value={task.title} onChange={(event) => updateTask(task.id, { title: event.target.value })} />{active && <span className="focus-badge">Сейчас</span>}<span className="project-mark">{projectLabel(task.project)}</span>{waiting && <button className="waiting-status" onClick={() => openReminder({ taskId: task.id })}>ЖДУ</button>}<span className="last-age">{ageLabel(lastTouched(task), now)}</span></div>
+      <div className="row-task-line"><button className={`notebook-check ${task.notebookCompleted ? 'checked' : ''}`} onClick={() => toggleCompleted(task.id)} title="Отметить выполненной">✓</button><span className="drag-handle" title="Перетащить">⋮⋮</span><textarea className="row-title" rows={1} value={task.title} onChange={(event) => updateTask(task.id, { title: event.target.value })} onDoubleClick={() => openTask(task.id)} title="Двойной клик — открыть задачу" /><button className="open-task-button" onClick={() => openTask(task.id)} title="Открыть задачу">↗</button>{active && <span className="focus-badge">Сейчас</span>}<span className="project-mark">{projectLabel(task.project)}</span>{waiting && <button className="waiting-status" onClick={() => openReminder({ taskId: task.id })}>ЖДУ</button>}<span className="last-age">{ageLabel(lastTouched(task), now)}</span></div>
       <div className="stream-line">
         {hidden > 0 && !expanded && <button className="history-more" onClick={() => setExpanded(true)}>История · {task.steps.length}</button>}
         {visible.map((item) => <div className={`stream-event ${item.waitingPerson ? 'event-waiting' : ''}`} key={item.id}>
-          {editing === item.id ? <form onSubmit={(event) => { event.preventDefault(); if (editText.trim()) updateStep(task.id, item.id, { text: editText.trim() }); setEditing(null); }}><input autoFocus value={editText} onChange={(event) => setEditText(event.target.value)} onKeyDown={(event) => event.key === 'Escape' && setEditing(null)} /></form> : <><span>{item.text}</span><button className="event-edit" onClick={() => { setEditing(item.id); setEditText(item.text); }}>✎</button><button className="event-remind" onClick={() => openReminder({ taskId: task.id, stepId: item.id })}>⏰</button></>}
+          {editing === item.id ? <form onSubmit={(event) => { event.preventDefault(); if (editText.trim()) updateStep(task.id, item.id, { text: editText.trim() }); setEditing(null); }}><input autoFocus value={editText} onChange={(event) => setEditText(event.target.value)} onKeyDown={(event) => event.key === 'Escape' && setEditing(null)} /></form> : <><span>{item.text}</span><button className="event-edit" onClick={() => { setEditing(item.id); setEditText(item.text); }}>✎</button><button className="event-remind" onClick={() => openReminder({ taskId: task.id, stepId: item.id })}>⏰</button><button className="event-delete" onClick={() => deleteStep(task.id, item.id)} title="Удалить этап">×</button></>}
         </div>)}
         {expanded && task.steps.length > 3 && <button className="history-more" onClick={() => setExpanded(false)}>свернуть</button>}
         {!task.notebookCompleted && <form className="step-input-wrap" onSubmit={(event) => { event.preventDefault(); if (!step.trim()) return; addStep(task.id, step); setStep(''); }}><input value={step} onChange={(event) => setStep(event.target.value)} placeholder={task.steps.length ? '+ что дальше?' : '+ первое действие'} /></form>}
@@ -328,6 +333,27 @@ function NotebookRow({ number, task, now, active, waiting, onDragStart, onDrop, 
       <div className="row-actions"><button className={active ? 'active' : ''} onClick={() => requestActivate(task.id)}>{active ? 'Сейчас' : 'В фокус'}</button><button onClick={() => openReminder({ taskId: task.id })}>⏰ Жду / напомнить</button><select defaultValue="" onChange={(event) => { if (event.target.value) moveToBoard(task.id, event.target.value as BoardColumnId); event.currentTarget.value = ''; }}><option value="">→ В доску</option><option value="today">Сегодня</option><option value="week">Неделя</option><option value="month">Месяц</option><option value="delegated">Делегировано</option></select>{task.notebookCompleted && <button className="finish-row" onClick={() => finishTask(task.id)}>В Готово</button>}</div>
     </div>
   </article>;
+}
+
+
+function TaskFocusView({ task, now, close, updateTask, addStep, updateStep, deleteStep, openReminder, toggleCompleted, finishTask }: {
+  task: Task; now: number; close: () => void; updateTask: (id: string, patch: Partial<Task>) => void; addStep: (id: string, text: string) => void; updateStep: (taskId: string, stepId: string, patch: Partial<TaskStep>) => void; deleteStep: (taskId: string, stepId: string) => void; openReminder: (target: ReminderTarget) => void; toggleCompleted: (id: string) => void; finishTask: (id: string) => void;
+}) {
+  const [next, setNext] = useState('');
+  const current = task.steps.at(-1) || null;
+  const submitNext = () => { if (!next.trim()) return; addStep(task.id, next); setNext(''); };
+  return <div className="task-focus-overlay">
+    <div className="task-focus-shell">
+      <div className="task-focus-top"><button className="task-focus-back" onClick={close}>← Вернуться в Тетрадь</button><span className="task-focus-mode">Одна задача · без отвлечений</span></div>
+      <textarea className="task-focus-title" value={task.title} rows={2} onChange={(event) => updateTask(task.id, { title: event.target.value })} />
+      <div className="task-focus-meta">{projectLabel(task.project) && <span className={`task-focus-project ${task.project}`}>{projectLabel(task.project)}</span>}<span>{ageLabel(lastTouched(task), now)}</span>{taskIsWaiting(task) && <button className="task-focus-wait" onClick={() => openReminder({ taskId: task.id })}>ЖДУ</button>}</div>
+      {current ? <section className="task-focus-current"><small>Сейчас основной этап</small><strong>{current.text}</strong></section> : <section className="task-focus-current empty"><small>Сейчас</small><strong>Добавь первый этап ниже</strong></section>}
+      <div className="task-focus-history-head"><span>История этапов</span><span>{task.steps.length}</span></div>
+      <section className="task-focus-history">{task.steps.map((item, index) => <article className={`task-focus-step ${item.id === current?.id ? 'current' : ''}`} key={item.id}><div className="task-focus-step-number">{index + 1}</div><textarea value={item.text} rows={1} onChange={(event) => updateStep(task.id, item.id, { text: event.target.value })} /><div className="task-focus-step-actions"><button onClick={() => openReminder({ taskId: task.id, stepId: item.id })} title="Жду / напомнить">⏰</button><button className="delete" onClick={() => deleteStep(task.id, item.id)} title="Удалить этап">×</button></div></article>)}</section>
+      {!task.notebookCompleted && <form className="task-focus-next" onSubmit={(event) => { event.preventDefault(); submitNext(); }}><label>Следующий этап</label><div className="task-focus-next-row"><input autoFocus value={next} onChange={(event) => setNext(event.target.value)} placeholder="Что делаю дальше?" /><button>Добавить этап</button></div></form>}
+      <div className="task-focus-footer"><button onClick={() => openReminder({ taskId: task.id })}>⏰ Жду / напомнить</button><button onClick={() => toggleCompleted(task.id)}>{task.notebookCompleted ? 'Вернуть в работу' : 'Отметить выполненной'}</button>{task.notebookCompleted && <button className="complete" onClick={() => { finishTask(task.id); close(); }}>В Готово</button>}</div>
+    </div>
+  </div>;
 }
 
 function BoardPage({ store, city, setCity, now, dragId, setDragId, createTask, moveTask, openSchedule, openReminder, openDelegate, finishTask }: {
