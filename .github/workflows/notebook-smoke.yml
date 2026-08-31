@@ -6,6 +6,8 @@ on:
     paths:
       - '.github/workflows/notebook-smoke.yml'
       - '.github/scripts/notebook_smoke.mjs'
+      - 'src/App.tsx'
+      - 'src/notebook-calm-tight.css'
 
 permissions:
   contents: read
