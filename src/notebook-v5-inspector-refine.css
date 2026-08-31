@@ -1,0 +1,235 @@
+/* Notebook v5 inspector refinement — compact, ordered, quiet history. */
+
+.nb5-inspector{
+  padding:15px 14px 13px;
+  border-radius:11px;
+  background:linear-gradient(180deg,#12171a 0%,#0f1316 100%);
+}
+
+.nb5-inspector-top{margin-bottom:4px}
+.nb5-inspector-kicker{font-size:7px;letter-spacing:.11em}
+
+.nb5-inspector-title{
+  padding:3px 0 5px;
+  font-size:15px;
+  font-weight:720;
+  line-height:1.25;
+  letter-spacing:-.018em;
+}
+
+.nb5-inspector-meta{
+  margin:1px 0 15px;
+  gap:6px;
+  font-size:7px;
+}
+
+/* Current action is the only visually strong working field. */
+.nb5-inspector-current{
+  margin:0 0 17px;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+}
+.nb5-inspector-current .nb5-section-label{
+  margin:0 0 6px;
+}
+.nb5-inspector-current textarea{
+  min-height:38px;
+  max-height:76px;
+  resize:none;
+  padding:9px 11px;
+  border:1px solid #58733f;
+  border-radius:6px;
+  background:#111511;
+  color:#f1f4ef;
+  font:570 11px/1.45 inherit;
+  letter-spacing:-.005em;
+  transition:border-color .12s,background .12s;
+}
+.nb5-inspector-current textarea:focus{
+  border-color:#78a94d;
+  background:#131912;
+  box-shadow:0 0 0 1px rgba(120,169,77,.08);
+}
+.nb5-inspector-current .nb5-section-label>div{
+  opacity:.22;
+  transition:opacity .12s;
+}
+.nb5-inspector-current:hover .nb5-section-label>div{opacity:.9}
+
+/* History — one quiet chronological list, not a form. */
+.nb5-inspector-history{
+  margin:0 0 17px;
+  padding:0;
+}
+.nb5-inspector-history .nb5-section-label{
+  justify-content:flex-start;
+  gap:7px;
+  margin:0 0 7px;
+  color:#59636b;
+  font-size:7px;
+  letter-spacing:.09em;
+}
+.nb5-inspector-history .nb5-section-label b{
+  display:inline;
+  min-width:0;
+  height:auto;
+  padding:0;
+  border-radius:0;
+  background:transparent;
+  color:#555f67;
+  font-size:7px;
+  font-weight:600;
+}
+.nb5-history-list{
+  max-height:215px;
+  padding:0;
+  overflow:auto;
+}
+.nb5-history-list article{
+  position:relative;
+  display:grid;
+  grid-template-columns:14px minmax(0,1fr) 44px;
+  gap:7px;
+  align-items:center;
+  min-height:27px;
+  padding:1px 0;
+  border:0;
+  background:transparent;
+}
+.nb5-history-list article+article{margin-top:1px}
+
+/* Reuse the existing number cell as a completed-step check. */
+.nb5-history-number{
+  display:grid;
+  place-items:center;
+  width:11px;
+  height:11px;
+  padding:0;
+  border:1px solid #4f5a61;
+  border-radius:50%;
+  color:transparent;
+  font-size:0;
+  box-sizing:border-box;
+}
+.nb5-history-number:after{
+  content:'✓';
+  color:#68747b;
+  font-size:6px;
+  font-weight:800;
+  line-height:1;
+}
+
+.nb5-history-list textarea{
+  display:block;
+  width:100%;
+  min-height:24px;
+  height:24px;
+  resize:none;
+  overflow:hidden;
+  padding:4px 0 3px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:#8d979d;
+  outline:none;
+  font:500 9.5px/1.5 inherit;
+  letter-spacing:0;
+  transition:color .12s,background .12s;
+}
+.nb5-history-list textarea:hover{color:#b8c0c4}
+.nb5-history-list textarea:focus{
+  padding-left:5px;
+  padding-right:5px;
+  border:0;
+  border-radius:4px;
+  background:#171c20;
+  color:#e1e6e3;
+}
+.nb5-history-list article.waiting textarea{color:#a98e60}
+.nb5-history-list article.waiting .nb5-history-number{border-color:#8a6d3d}
+.nb5-history-list article.waiting .nb5-history-number:after{color:#b68b45}
+
+.nb5-history-tools{
+  display:flex;
+  justify-content:flex-end;
+  gap:1px;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .1s;
+}
+.nb5-history-list article:hover .nb5-history-tools,
+.nb5-history-list article:focus-within .nb5-history-tools{
+  opacity:.75;
+  pointer-events:auto;
+}
+.nb5-history-tools button{
+  display:grid;
+  place-items:center;
+  width:20px;
+  height:20px;
+  padding:0;
+  border:0;
+  border-radius:4px;
+  background:transparent;
+  color:#626d74;
+  font-size:9px;
+  cursor:pointer;
+}
+.nb5-history-tools button:hover{background:#20262a;color:#d0d6d3}
+.nb5-history-tools button.delete:hover{background:#2a1c1c;color:#e27f78}
+
+/* Next step stays one compact command line. */
+.nb5-next-form{
+  margin:0 0 16px;
+}
+.nb5-next-form label{
+  display:block;
+  margin:0 0 6px;
+  color:#606a71;
+  font-size:7px;
+  font-weight:720;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.nb5-next-form>div{
+  display:flex;
+  gap:5px;
+}
+.nb5-next-form input,
+.nb5-first-action input{
+  height:35px;
+  padding:5px 9px;
+  border-color:#343c42;
+  background:#101417;
+  font-size:9.5px;
+}
+.nb5-next-form input:focus,
+.nb5-first-action input:focus{border-color:#4a565e}
+.nb5-next-form button,
+.nb5-first-action button{
+  min-width:43px;
+  color:#727d84;
+  background:#171d21;
+  font-size:7px;
+}
+
+/* Footer reads as one light action bar. */
+.nb5-inspector-footer{
+  margin-top:2px;
+  padding-top:10px;
+  border-top:1px solid #252c31;
+  gap:3px;
+}
+.nb5-inspector-footer button,
+.nb5-inspector-footer select{
+  min-height:27px;
+  padding:0 6px;
+  font-size:7.5px;
+}
+
+@media(max-width:1050px){
+  .nb5-inspector-title{font-size:16px}
+  .nb5-history-list textarea{font-size:10px}
+}
