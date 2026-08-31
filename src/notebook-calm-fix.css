@@ -32,10 +32,59 @@
   outline:none!important;
 }
 
+/* Notebook task creation: a single plus at rest, compact editor only on demand. */
+.notebook-add-trigger{
+  display:grid!important;
+  place-items:center!important;
+  width:30px!important;
+  height:30px!important;
+  margin:3px 0 8px 31px!important;
+  padding:0!important;
+  border:1px solid #2c333b!important;
+  border-radius:7px!important;
+  background:#111418!important;
+  color:#697480!important;
+  font-size:18px!important;
+  line-height:1!important;
+  cursor:pointer!important;
+}
+.notebook-add-trigger:hover{border-color:#3d4854!important;background:#171b20!important;color:#c3cbd3!important}
+.v6-notebook .v6-new-task.compact-new-task{
+  display:inline-flex!important;
+  width:auto!important;
+  max-width:min(690px,calc(100vw - 72px))!important;
+  min-height:36px!important;
+  margin:3px 0 8px 31px!important;
+  padding:4px 5px!important;
+  border:1px solid #303842!important;
+  border-radius:8px!important;
+  background:#111418!important;
+  box-shadow:none!important;
+}
+.v6-notebook .v6-new-task.compact-new-task>input{
+  flex:0 1 330px!important;
+  width:330px!important;
+  min-width:180px!important;
+  max-width:42vw!important;
+  padding:0 5px!important;
+  border:0!important;
+  background:transparent!important;
+  color:#edf1f4!important;
+  font-size:12px!important;
+}
+.v6-notebook .v6-new-task.compact-new-task .project-picker{flex-wrap:nowrap!important;gap:2px!important}
+.v6-notebook .v6-new-task.compact-new-task .project-picker button{padding:4px 6px!important;font-size:9px!important}
+.v6-notebook .v6-new-task.compact-new-task>button[type="submit"]{padding:5px 8px!important;border:0!important;background:#202831!important;color:#bfc8d1!important;font-size:10px!important}
+.v6-notebook .v6-new-task.compact-new-task>.new-task-cancel{display:grid!important;place-items:center!important;width:24px!important;height:24px!important;padding:0!important;border:0!important;background:transparent!important;color:#66717c!important;font-size:14px!important}
+.v6-notebook .v6-new-task.compact-new-task>.new-task-cancel:hover{color:#d5dbe1!important}
+
 /* Browser button/select defaults must not make the hidden action menu loud. */
 .v6-row .row-more-menu select{appearance:auto!important}
 .v6-row .row-more-menu option{background:#15191e!important;color:#d2d8de!important}
 
 @media(max-width:760px){
   .v6-row .row-more>summary{opacity:.7!important}
+  .notebook-add-trigger{margin-left:24px!important}
+  .v6-notebook .v6-new-task.compact-new-task{margin-left:24px!important;max-width:calc(100vw - 48px)!important;flex-wrap:wrap!important}
+  .v6-notebook .v6-new-task.compact-new-task>input{width:min(330px,70vw)!important;max-width:70vw!important}
 }
