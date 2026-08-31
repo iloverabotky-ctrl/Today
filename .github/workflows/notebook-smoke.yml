@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/notebook-smoke.yml'
+      - '.github/scripts/notebook_smoke.mjs'
 
 permissions:
   contents: read
