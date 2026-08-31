@@ -127,3 +127,52 @@
   .v6-row .step-input-wrap{grid-column:1!important;margin-top:5px!important}
   .v6-row .stream-line:has(> .step-input-wrap) .stream-event{padding-right:0!important}
 }
+
+/* Final ownership of the calm Notebook grid.
+   Old stage-layout selectors are more specific, so the calm view gets an ID-level override. */
+#root .v6-row .stream-line,
+#root .v6-row .stream-line:has(> .stream-event:first-of-type),
+#root .v6-row .stream-line:has(> .stream-event:first-of-type):not(:has(> .stream-event:nth-of-type(2))),
+#root .v6-row .stream-line:has(> .stream-event:nth-of-type(2)):not(:has(> .stream-event:nth-of-type(3))),
+#root .v6-row .stream-line:has(> .stream-event:nth-of-type(3)),
+#root .v6-row .stream-line:not(:has(> .history-more)){
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  column-gap:0!important;
+  width:100%!important;
+  min-width:0!important;
+}
+#root .v6-row .stream-line>.stream-event,
+#root .v6-row .stream-line>.stream-event:first-of-type,
+#root .v6-row .stream-line>.stream-event:nth-of-type(2),
+#root .v6-row .stream-line>.stream-event:nth-of-type(3){
+  grid-column:1!important;
+  grid-row:1!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+}
+#root .v6-row .stream-event .current-action-text{
+  flex:1 1 auto!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:none!important;
+}
+#root .v6-row .stream-line:has(> .step-input-wrap){
+  grid-template-columns:minmax(0,1fr) minmax(145px,190px)!important;
+  column-gap:9px!important;
+}
+#root .v6-row .stream-line:has(> .step-input-wrap)>.stream-event{grid-column:1!important}
+#root .v6-row .stream-line:has(> .step-input-wrap)>.step-input-wrap{grid-column:2!important}
+
+@media(max-width:760px){
+  #root .v6-row .stream-line,
+  #root .v6-row .stream-line:has(> .stream-event:first-of-type),
+  #root .v6-row .stream-line:has(> .stream-event:first-of-type):not(:has(> .stream-event:nth-of-type(2))),
+  #root .v6-row .stream-line:not(:has(> .history-more)),
+  #root .v6-row .stream-line:has(> .step-input-wrap){
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  #root .v6-row .stream-line:has(> .step-input-wrap)>.step-input-wrap{grid-column:1!important}
+}
