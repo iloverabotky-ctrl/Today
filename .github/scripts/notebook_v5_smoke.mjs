@@ -9,7 +9,7 @@ page.on('pageerror', error => errors.push(String(error)));
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 
 const now = Date.now();
-const task = (id, title, order, steps, active = false) => ({
+const task = (id, title, order, steps) => ({
   id, title, columnId:'today', boardOrder:order, inNotebook:true, notebookOrder:order, notebookAt:now-1000,
   notebookCompleted:false, steps:steps.map((text,i)=>({id:`${id}-s${i}`,text,createdAt:now-(steps.length-i)*60000,waitingPerson:'',remindAt:null})),
   waitingPerson:'', returnAt:null, assignee:'', deadline:null, project:order%2?'kvep':'pasta', city:'spb', createdAt:now-(order+1)*3600000, completedAt:null,
@@ -31,8 +31,8 @@ const rects = await page.locator('.nb5-row').evaluateAll(rows => rows.map(row =>
 assert(rects.every(r => Math.abs(r.height-rects[0].height)<0.5), 'rows must have equal height');
 assert(rects.every(r => Math.abs(r.x-rects[0].x)<0.5), 'rows must share left edge');
 
-await page.locator('.nb5-row[data-task-id="t2"]').click();
-assert(await page.locator('.nb5-inspector-title').inputValue() === 'Вторая задача', 'row click must select inspector task');
+await page.locator('.nb5-row[data-task-id="t2"] .nb5-title').click();
+assert(await page.locator('.nb5-inspector-title').inputValue() === 'Вторая задача', 'title click must select inspector task');
 
 await page.locator('.nb5-row[data-task-id="t2"] .nb5-current-action').click();
 const inline = page.locator('.nb5-row[data-task-id="t2"] .nb5-current-cell input');
@@ -57,16 +57,16 @@ await page.getByRole('button', { name:/Сделать СЕЙЧАС/ }).click();
 await page.waitForTimeout(100);
 assert((await page.locator('.nb5-row[data-task-id="t2"]').getAttribute('class'))?.includes('active'), 'focus action must activate task');
 
-await page.getByRole('button', { name:/ЖДУ \/ напомнить/ }).click();
+await page.locator('.nb5-inspector-footer').getByRole('button', { name:/ЖДУ \/ напомнить/ }).click();
 await page.waitForSelector('.reminder-modal');
 await page.keyboard.press('Escape');
 await page.waitForTimeout(80);
 
-await page.getByRole('button', { name:'✓ Выполнено' }).click();
+await page.locator('.nb5-inspector-footer').getByRole('button', { name:'✓ Выполнено' }).click();
 await page.waitForTimeout(120);
 assert(await page.locator('.nb5-completed-summary').isVisible(), 'completed summary must appear');
 
-await page.locator('.nb5-row[data-task-id="t1"]').click();
+await page.locator('.nb5-row[data-task-id="t1"] .nb5-title').click();
 await page.locator('.nb5-inspector-icons button[title="Глубокий режим"]').click();
 await page.waitForSelector('.task-focus-overlay');
 await page.keyboard.press('Escape');
