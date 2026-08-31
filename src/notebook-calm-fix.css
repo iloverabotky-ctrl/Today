@@ -82,9 +82,103 @@
 .v6-row .row-more-menu select{appearance:auto!important}
 .v6-row .row-more-menu option{background:#15191e!important;color:#d2d8de!important}
 
+/* Geometry lock: every calm Notebook row starts and ends on the same grid. */
+.v6-row:not(:has(.notebook-history-drawer.open)){
+  height:54px!important;
+  min-height:54px!important;
+}
+.v6-row:has(.notebook-history-drawer.open){height:auto!important}
+.v6-row .row-main{
+  grid-template-columns:440px minmax(0,1fr)!important;
+  grid-template-rows:auto auto!important;
+  column-gap:18px!important;
+  min-height:53px!important;
+  padding:8px 34px 8px 7px!important;
+  box-sizing:border-box!important;
+}
+.v6-row .row-task-line{
+  display:grid!important;
+  grid-template-columns:16px 14px minmax(0,1fr) auto auto 46px auto auto!important;
+  align-items:center!important;
+  column-gap:6px!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:36px!important;
+  padding:0!important;
+}
+.v6-row .notebook-check{grid-column:1!important;justify-self:center!important;margin:0!important}
+.v6-row .drag-handle{grid-column:2!important;justify-self:center!important;margin:0!important}
+.v6-row .row-title-open{
+  grid-column:3!important;
+  justify-self:stretch!important;
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+  text-align:left!important;
+}
+.v6-row .focus-badge{grid-column:4!important;margin:0!important}
+.v6-row .project-dot{grid-column:5!important;margin:0!important}
+.v6-row .task-created-time{
+  grid-column:6!important;
+  justify-self:end!important;
+  width:46px!important;
+  max-width:46px!important;
+  margin:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  color:#414a54!important;
+  font-size:7px!important;
+  font-weight:520!important;
+  line-height:1!important;
+  font-variant-numeric:tabular-nums!important;
+  text-align:right!important;
+}
+.v6-row:hover .task-created-time,.v6-row.active-row .task-created-time{color:#555f69!important}
+.v6-row .waiting-status{grid-column:7!important;margin:0!important}
+.v6-row .stale-age{grid-column:8!important;margin:0!important;justify-self:end!important}
+.v6-row .stream-line{
+  min-height:36px!important;
+  height:36px!important;
+  align-self:center!important;
+}
+.v6-row .stream-event{
+  min-height:34px!important;
+  height:34px!important;
+  align-self:center!important;
+}
+
+/* Focus changes emphasis, never geometry. */
+.v6-row.active-row:not(:has(.notebook-history-drawer.open)){
+  height:54px!important;
+  min-height:54px!important;
+}
+.v6-row.active-row:has(.notebook-history-drawer.open){height:auto!important}
+.v6-row.active-row .row-main{
+  min-height:53px!important;
+  padding-top:8px!important;
+  padding-bottom:8px!important;
+}
+.v6-row.active-row .row-title-open{font-size:13px!important;line-height:1.42!important}
+.v6-row.active-row .current-action-text{font-size:13px!important;line-height:1.42!important}
+
+@media(max-width:1050px){
+  .v6-row .row-main{grid-template-columns:360px minmax(0,1fr)!important;column-gap:14px!important}
+  .v6-row .row-task-line{grid-template-columns:16px 14px minmax(0,1fr) auto auto 42px auto!important;column-gap:5px!important}
+  .v6-row .task-created-time{grid-column:6!important;width:42px!important;max-width:42px!important;font-size:6.5px!important}
+  .v6-row .waiting-status{grid-column:7!important}
+  .v6-row .stale-age{display:none!important}
+}
+
 @media(max-width:760px){
   .v6-row .row-more>summary{opacity:.7!important}
   .notebook-add-trigger{margin-left:24px!important}
   .v6-notebook .v6-new-task.compact-new-task{margin-left:24px!important;max-width:calc(100vw - 48px)!important;flex-wrap:wrap!important}
   .v6-notebook .v6-new-task.compact-new-task>input{width:min(330px,70vw)!important;max-width:70vw!important}
+  .v6-row:not(:has(.notebook-history-drawer.open)),.v6-row.active-row:not(:has(.notebook-history-drawer.open)){height:auto!important;min-height:52px!important}
+  .v6-row .row-main{display:block!important;min-height:0!important;padding:8px 32px 8px 5px!important}
+  .v6-row .row-task-line{display:grid!important;grid-template-columns:16px 14px minmax(0,1fr) auto auto 38px!important;column-gap:5px!important}
+  .v6-row .task-created-time{grid-column:6!important;width:38px!important;max-width:38px!important;font-size:6.5px!important}
+  .v6-row .waiting-status{grid-column:3!important;grid-row:2!important;justify-self:start!important;margin-top:3px!important}
 }
