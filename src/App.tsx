@@ -315,23 +315,22 @@ function NotebookPage({ tasks, upcoming, activeTaskId, dueItems, now, dragId, se
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [project, setProject] = useState<ProjectId>('none');
   const [showCompleted, setShowCompleted] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(activeTaskId || tasks.find((task) => !task.notebookCompleted)?.id || null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const workingTasks = tasks.filter((task) => !task.notebookCompleted);
   const completedTasks = tasks.filter((task) => task.notebookCompleted);
   const selectedTask = selectedId ? tasks.find((task) => task.id === selectedId) || null : null;
 
   useEffect(() => {
-    if (selectedId && tasks.some((task) => task.id === selectedId)) return;
-    const fallback = (activeTaskId && tasks.some((task) => task.id === activeTaskId) ? activeTaskId : null) || workingTasks[0]?.id || completedTasks[0]?.id || null;
-    setSelectedId(fallback);
-  }, [tasks, selectedId, activeTaskId]);
+    if (selectedId && !tasks.some((task) => task.id === selectedId)) setSelectedId(null);
+  }, [tasks, selectedId]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable;
       if (typing) return;
+      if (!selectedTask) return;
       const currentIndex = workingTasks.findIndex((task) => task.id === selectedId);
       if (event.key === 'ArrowDown' && workingTasks.length) {
         event.preventDefault();
@@ -458,7 +457,7 @@ function NotebookV5Row({ number, task, now, selected, active, waiting, onSelect,
     </div>
     <time className="nb5-created" title={new Date(task.createdAt).toLocaleString('ru-RU')}>{formatTaskCreated(task.createdAt)}</time>
     <div className="nb5-current-cell">
-      {editing && current ? <form onSubmit={(event) => { event.preventDefault(); saveCurrent(); }} onClick={(event) => event.stopPropagation()}><input autoFocus value={editText} onChange={(event) => setEditText(event.target.value)} onBlur={saveCurrent} onKeyDown={(event) => { if (event.key === 'Escape') { setEditText(current.text); setEditing(false); } }} /></form> : current ? <button type="button" className="nb5-current-action" title={current.text} onClick={(event) => { event.stopPropagation(); onSelect(); setEditing(true); }}>{current.text}</button> : <button type="button" className="nb5-current-empty" onClick={(event) => { event.stopPropagation(); quickNext(); }}>＋ первое действие</button>}
+      {editing && current ? <form onSubmit={(event) => { event.preventDefault(); saveCurrent(); }} onClick={(event) => event.stopPropagation()}><input autoFocus value={editText} onChange={(event) => setEditText(event.target.value)} onBlur={saveCurrent} onKeyDown={(event) => { if (event.key === 'Escape') { setEditText(current.text); setEditing(false); } }} /></form> : current ? <button type="button" className="nb5-current-action" title={current.text} onClick={(event) => { event.stopPropagation(); setEditing(true); }}>{current.text}</button> : <button type="button" className="nb5-current-empty" onClick={(event) => { event.stopPropagation(); quickNext(); }}>＋ первое действие</button>}
     </div>
     <div className="nb5-state">
       {active ? <span className="nb5-state-focus">СЕЙЧАС</span> : waiting ? <button type="button" className="nb5-state-wait" onClick={(event) => { event.stopPropagation(); openReminder({ taskId: task.id, stepId: current?.id }); }}>{waitingPerson ? `ЖДУ · ${waitingPerson}` : 'ЖДУ'}</button> : staleDays >= 3 ? <span className="nb5-state-stale">{staleDays}д без движения</span> : null}
