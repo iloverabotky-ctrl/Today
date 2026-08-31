@@ -25,21 +25,39 @@ await page.waitForSelector('.nb5-row');
 
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
 assert(await page.locator('.nb5-row').count() === 3, 'three notebook rows expected');
-assert(await page.locator('.nb5-inspector').isVisible(), 'inspector should be visible');
+assert(await page.locator('.nb5-inspector').count() === 0, 'inspector must be closed on notebook entry');
+assert(!(await page.locator('.nb5-workspace').getAttribute('class'))?.includes('has-inspector'), 'notebook must use full width before task click');
 
 const rects = await page.locator('.nb5-row').evaluateAll(rows => rows.map(row => { const r=row.getBoundingClientRect(); return {height:r.height,x:r.x,width:r.width}; }));
 assert(rects.every(r => Math.abs(r.height-rects[0].height)<0.5), 'rows must have equal height');
 assert(rects.every(r => Math.abs(r.x-rects[0].x)<0.5), 'rows must share left edge');
 
-await page.locator('.nb5-row[data-task-id="t2"] .nb5-title').click();
-assert(await page.locator('.nb5-inspector-title').inputValue() === 'Вторая задача', 'title click must select inspector task');
-
+// Current action edits inline and must not open the task card.
 await page.locator('.nb5-row[data-task-id="t2"] .nb5-current-action').click();
 const inline = page.locator('.nb5-row[data-task-id="t2"] .nb5-current-cell input');
 await inline.fill('Второй шаг изменён');
 await inline.press('Enter');
 await page.waitForTimeout(100);
 assert((await page.locator('.nb5-row[data-task-id="t2"] .nb5-current-action').textContent())?.includes('изменён'), 'inline edit must persist');
+assert(await page.locator('.nb5-inspector').count() === 0, 'inline edit must keep inspector closed');
+
+// New task keeps the old explicit project picker.
+await page.locator('#new-notebook-add').click();
+assert(await page.locator('.nb5-new-task .project-picker').isVisible(), 'project picker must be visible when creating a task');
+await page.locator('.nb5-new-task .project-picker').getByRole('button', { name:'Паста' }).click();
+await page.locator('#new-notebook-task').fill('Новая проектная задача');
+await page.locator('#new-notebook-task').press('Enter');
+await page.waitForTimeout(120);
+const newRow = page.locator('.nb5-row').filter({ hasText:'Новая проектная задача' }).first();
+assert(await newRow.isVisible(), 'new task must appear');
+assert(await newRow.locator('.nb5-project-dot.pasta').count() === 1, 'selected project must be saved');
+assert(await page.locator('.nb5-inspector').count() === 0, 'creating task must not auto-open inspector');
+
+// Clicking the task itself opens the right card.
+await page.locator('.nb5-row[data-task-id="t2"] .nb5-title').click();
+await page.waitForSelector('.nb5-inspector');
+assert(await page.locator('.nb5-inspector-title').inputValue() === 'Вторая задача', 'task click must open its card');
+assert((await page.locator('.nb5-workspace').getAttribute('class'))?.includes('has-inspector'), 'workspace must split only after task click');
 
 await page.locator('.nb5-row[data-task-id="t2"]').hover();
 await page.locator('.nb5-row[data-task-id="t2"] button[title="Следующий шаг"]').click();
@@ -62,16 +80,19 @@ await page.waitForSelector('.reminder-modal');
 await page.keyboard.press('Escape');
 await page.waitForTimeout(80);
 
-await page.locator('.nb5-inspector-footer').getByRole('button', { name:'✓ Выполнено' }).click();
-await page.waitForTimeout(120);
-assert(await page.locator('.nb5-completed-summary').isVisible(), 'completed summary must appear');
+// Close returns to the clean full-width notebook.
+await page.locator('.nb5-inspector-icons button[title="Закрыть"]').click();
+await page.waitForTimeout(80);
+assert(await page.locator('.nb5-inspector').count() === 0, 'close must remove task card');
+assert(!(await page.locator('.nb5-workspace').getAttribute('class'))?.includes('has-inspector'), 'close must restore full-width notebook');
 
+// Reopen and verify deep mode remains available.
 await page.locator('.nb5-row[data-task-id="t1"] .nb5-title').click();
 await page.locator('.nb5-inspector-icons button[title="Глубокий режим"]').click();
 await page.waitForSelector('.task-focus-overlay');
 await page.keyboard.press('Escape');
 
 assert(errors.length === 0, `browser errors: ${errors.join(' | ')}`);
-console.log('PASS notebook v5 smoke');
+console.log('PASS notebook closed/open smoke');
 console.log(JSON.stringify({rects}));
 await browser.close();
