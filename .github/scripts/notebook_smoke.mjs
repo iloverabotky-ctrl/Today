@@ -51,41 +51,48 @@ await check('Время создания отображается', async () => 
 });
 
 await check('Первое действие', async () => {
-  await row.getByRole('button', { name: 'Добавь первое действие' }).click();
-  const nextInput = row.getByPlaceholder('Следующий шаг...');
+  await row.locator('.empty-current').click();
+  const nextInput = row.locator('.step-input-wrap input');
   await nextInput.fill('Первое действие');
   await nextInput.press('Enter');
-  await row.getByRole('button', { name: 'Первое действие' }).waitFor();
+  const current = row.locator('.current-action-text');
+  await current.waitFor();
+  if ((await current.textContent())?.trim() !== 'Первое действие') throw new Error(`Текущий шаг: ${await current.textContent()}`);
 });
 
 await check('Добавление следующего шага', async () => {
   await row.hover();
-  const plus = row.getByRole('button', { name: 'Следующий шаг' });
-  await plus.click();
-  const nextInput = row.getByPlaceholder('Следующий шаг...');
+  await row.locator('.next-step-trigger').click();
+  const nextInput = row.locator('.step-input-wrap input');
   await nextInput.fill('Второе действие');
   await nextInput.press('Enter');
-  await row.getByRole('button', { name: 'Второе действие' }).waitFor();
+  const current = row.locator('.current-action-text');
+  await current.waitFor();
+  if ((await current.textContent())?.trim() !== 'Второе действие') throw new Error(`Текущий шаг: ${await current.textContent()}`);
 });
 
 await check('История открывается', async () => {
   await row.hover();
-  await row.getByRole('button', { name: 'Открыть историю' }).click();
+  await row.locator('.history-more').click();
   await row.locator('.notebook-history-item').filter({ hasText: 'Первое действие' }).waitFor();
 });
 
 await check('Редактирование текущего шага', async () => {
-  await row.getByRole('button', { name: 'Второе действие' }).click();
+  await row.locator('.current-action-text').click();
   const editor = row.locator('.stream-event form input');
   await editor.fill('Второе действие — изменено');
   await editor.press('Enter');
-  await row.getByRole('button', { name: 'Второе действие — изменено' }).waitFor();
+  const current = row.locator('.current-action-text');
+  await current.waitFor();
+  if ((await current.textContent())?.trim() !== 'Второе действие — изменено') throw new Error(`После редактирования: ${await current.textContent()}`);
 });
 
 await check('Удаление текущего шага возвращает предыдущий', async () => {
   await row.hover();
-  await row.getByTitle('Удалить').click();
-  await row.getByRole('button', { name: 'Первое действие' }).waitFor();
+  await row.locator('.stream-event .event-delete').click();
+  const current = row.locator('.current-action-text');
+  await current.waitFor();
+  if ((await current.textContent())?.trim() !== 'Первое действие') throw new Error(`После удаления: ${await current.textContent()}`);
 });
 
 await check('Провал внутрь задачи и возврат', async () => {
