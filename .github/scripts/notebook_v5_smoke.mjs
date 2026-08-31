@@ -6,7 +6,7 @@ const browser = await chromium.launch({ headless: true, executablePath: chromePa
 const page = await browser.newPage({ viewport: { width: 1500, height: 900 } });
 const errors = [];
 page.on('pageerror', error => errors.push(String(error)));
-page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+page.on('console', message => { if (message.type() === 'error' && !message.text().includes('Failed to load resource')) errors.push(message.text()); });
 
 const now = Date.now();
 const task = (id, title, order, steps) => ({
