@@ -164,7 +164,11 @@ function App() {
       if (event.key === 'Escape') { setQuickOpen(false); setReminderTarget(null); setDelegateTaskId(null); setScheduleTaskId(null); setTaskFocusId(null); }
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         event.preventDefault(); setPage('notebook');
-        window.setTimeout(() => document.querySelector<HTMLInputElement>('#new-notebook-task')?.focus(), 0);
+        window.setTimeout(() => {
+          const input = document.querySelector<HTMLInputElement>('#new-notebook-task');
+          if (input) input.focus();
+          else document.querySelector<HTMLButtonElement>('#new-notebook-add')?.click();
+        }, 0);
         return;
       }
       if (typing) return;
@@ -308,6 +312,7 @@ function NotebookPage({ tasks, upcoming, activeTaskId, dueItems, now, dragId, se
   setDragId: (id: string | null) => void; createTask: (title: string, project: ProjectId) => unknown; updateTask: (id: string, patch: Partial<Task>) => void; addStep: (id: string, text: string) => void; updateStep: (taskId: string, stepId: string, patch: Partial<TaskStep>) => void; deleteStep: (taskId: string, stepId: string) => void; openTask: (id: string) => void; requestActivate: (id: string) => void; reorderNotebook: (id: string, beforeId?: string) => void; openReminder: (target: ReminderTarget) => void; moveToBoard: (id: string, column: BoardColumnId) => void; toggleCompleted: (id: string) => void; finishTask: (id: string) => void; showNow: (id: string) => void;
 }) {
   const [newTask, setNewTask] = useState('');
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [project, setProject] = useState<ProjectId>('none');
   const [showCompleted, setShowCompleted] = useState(false);
   const workingTasks = tasks.filter((task) => !task.notebookCompleted);
@@ -342,9 +347,9 @@ function NotebookPage({ tasks, upcoming, activeTaskId, dueItems, now, dragId, se
       <div className="returned-items">{dueItems.slice(0, 8).map((item) => <div className="returned-item" key={item.id}><div><strong>{item.task.title}</strong><small>{item.step ? item.step.text : item.person ? `Жду: ${item.person}` : 'Напоминание'}</small></div><button onClick={() => openReminder({ taskId: item.task.id, stepId: item.step?.id })}>открыть</button></div>)}</div>
     </details>}
 
-    <form className="new-task-line v6-new-task" onSubmit={(event) => { event.preventDefault(); if (!newTask.trim()) return; createTask(newTask, project); setNewTask(''); }}>
-      <span>＋</span><input id="new-notebook-task" value={newTask} onChange={(event) => setNewTask(event.target.value)} placeholder="Новая задача..." /><ProjectPicker value={project} setValue={setProject} /><button>Добавить</button>
-    </form>
+    {newTaskOpen ? <form className="new-task-line v6-new-task compact-new-task" onSubmit={(event) => { event.preventDefault(); if (!newTask.trim()) return; createTask(newTask, project); setNewTask(''); setNewTaskOpen(false); }}>
+      <input id="new-notebook-task" autoFocus value={newTask} onChange={(event) => setNewTask(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') { setNewTask(''); setNewTaskOpen(false); } }} placeholder="Новая задача..." /><ProjectPicker value={project} setValue={setProject} /><button type="submit">Добавить</button><button type="button" className="new-task-cancel" onClick={() => { setNewTask(''); setNewTaskOpen(false); }} aria-label="Закрыть">×</button>
+    </form> : <button id="new-notebook-add" type="button" className="notebook-add-trigger" onClick={() => setNewTaskOpen(true)} title="Добавить задачу" aria-label="Добавить задачу">＋</button>}
 
     <section className="notebook-list v6-notebook-list" onDragOver={(event) => event.preventDefault()} onDrop={() => dragId && reorderNotebook(dragId)}>
       {workingTasks.map((task, index) => renderRow(task, index))}
