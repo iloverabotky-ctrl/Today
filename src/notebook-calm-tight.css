@@ -147,6 +147,7 @@
 #root .v6-row .stream-line>.stream-event:first-of-type,
 #root .v6-row .stream-line>.stream-event:nth-of-type(2),
 #root .v6-row .stream-line>.stream-event:nth-of-type(3){
+  position:relative!important;
   grid-column:1!important;
   grid-row:1!important;
   width:100%!important;
@@ -166,6 +167,53 @@
 #root .v6-row .stream-line:has(> .step-input-wrap)>.stream-event{grid-column:1!important}
 #root .v6-row .stream-line:has(> .step-input-wrap)>.step-input-wrap{grid-column:2!important}
 
+/* Current-step utilities sit before History/+ and are clickable only on intent. */
+#root .v6-row .stream-event .event-edit,
+#root .v6-row .stream-event .event-remind,
+#root .v6-row .stream-event .event-delete{
+  position:absolute!important;
+  top:6px!important;
+  z-index:9!important;
+  display:grid!important;
+  place-items:center!important;
+  width:22px!important;
+  height:22px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:5px!important;
+  background:#171c21!important;
+  color:#66717c!important;
+  font-size:10px!important;
+  line-height:1!important;
+  opacity:0!important;
+  pointer-events:none!important;
+  cursor:pointer!important;
+}
+#root .v6-row .stream-event .event-edit{right:116px!important}
+#root .v6-row .stream-event .event-remind{right:92px!important}
+#root .v6-row .stream-event .event-delete{right:68px!important;color:#8b6764!important}
+#root .v6-row:hover .stream-event .event-edit,
+#root .v6-row:hover .stream-event .event-remind,
+#root .v6-row:hover .stream-event .event-delete,
+#root .v6-row .stream-event:focus-within .event-edit,
+#root .v6-row .stream-event:focus-within .event-remind,
+#root .v6-row .stream-event:focus-within .event-delete{
+  opacity:.86!important;
+  pointer-events:auto!important;
+}
+#root .v6-row .stream-event .event-edit:hover,
+#root .v6-row .stream-event .event-remind:hover{background:#20262d!important;color:#d5dbe1!important}
+#root .v6-row .stream-event .event-delete:hover{background:#2b1d1d!important;color:#ff9088!important}
+#root .v6-row:hover .stream-event .current-action-text,
+#root .v6-row .stream-event:focus-within .current-action-text{padding-right:142px!important}
+
+@media(pointer:coarse){
+  #root .v6-row .stream-event .event-remind,
+  #root .v6-row .stream-event .event-delete{opacity:.5!important;pointer-events:auto!important}
+  #root .v6-row .stream-event .event-edit{display:none!important}
+}
+
 @media(max-width:760px){
   #root .v6-row .stream-line,
   #root .v6-row .stream-line:has(> .stream-event:first-of-type),
@@ -175,4 +223,8 @@
     grid-template-columns:minmax(0,1fr)!important;
   }
   #root .v6-row .stream-line:has(> .step-input-wrap)>.step-input-wrap{grid-column:1!important}
+  #root .v6-row .stream-event .event-remind{right:64px!important}
+  #root .v6-row .stream-event .event-delete{right:40px!important}
+  #root .v6-row:hover .stream-event .current-action-text,
+  #root .v6-row .stream-event:focus-within .current-action-text{padding-right:92px!important}
 }
