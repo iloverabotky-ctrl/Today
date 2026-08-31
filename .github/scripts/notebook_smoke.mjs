@@ -6,6 +6,7 @@ if (!chromePath) throw new Error('CHROME_PATH is not set');
 
 const browser = await chromium.launch({ headless: true, executablePath: chromePath, args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+page.setDefaultTimeout(4000);
 const failures = [];
 const checks = [];
 
@@ -15,7 +16,7 @@ const check = async (name, fn) => {
     checks.push(`PASS ${name}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    checks.push(`FAIL ${name}: ${message}`);
+    checks.push(`FAIL ${name}: ${message.split('\n')[0]}`);
     failures.push(name);
   }
 };
@@ -45,6 +46,10 @@ await check('Создание задачи', async () => {
 
 const row = page.locator('.v6-row').filter({ hasText: 'SMOKE — проверить Тетрадь' }).first();
 
+await check('Время создания отображается', async () => {
+  await row.locator('.task-created-time').waitFor();
+});
+
 await check('Первое действие', async () => {
   await row.getByRole('button', { name: 'Добавь первое действие' }).click();
   const nextInput = row.getByPlaceholder('Следующий шаг...');
@@ -66,7 +71,7 @@ await check('Добавление следующего шага', async () => {
 await check('История открывается', async () => {
   await row.hover();
   await row.getByRole('button', { name: 'Открыть историю' }).click();
-  await row.getByRole('button', { name: 'Первое действие' }).waitFor();
+  await row.locator('.notebook-history-item').filter({ hasText: 'Первое действие' }).waitFor();
 });
 
 await check('Редактирование текущего шага', async () => {
@@ -83,11 +88,12 @@ await check('Удаление текущего шага возвращает п�
   await row.getByRole('button', { name: 'Первое действие' }).waitFor();
 });
 
-await check('Провал внутрь задачи', async () => {
+await check('Провал внутрь задачи и возврат', async () => {
   await row.getByRole('button', { name: 'SMOKE — проверить Тетрадь' }).click();
   await page.getByText('Одна задача · без отвлечений').waitFor();
   await page.getByRole('button', { name: /Вернуться в Тетрадь/ }).click();
   await page.getByRole('heading', { name: 'Тетрадь' }).waitFor();
+  await row.locator('.focus-badge').filter({ hasText: 'СЕЙЧАС' }).waitFor();
 });
 
 await check('Жду / напоминание', async () => {
@@ -95,16 +101,9 @@ await check('Жду / напоминание', async () => {
   await row.locator('.row-more > summary').click();
   await row.getByRole('button', { name: 'Жду / напомнить' }).click();
   const modal = page.locator('.reminder-modal');
-  await modal.getByLabel('Кого жду?').fill('Тест');
+  await modal.locator('input[list="reminder-team"]').fill('Тест');
   await modal.getByRole('button', { name: 'Сохранить' }).click();
   await row.getByRole('button', { name: 'ЖДУ · Тест' }).waitFor();
-});
-
-await check('Фокус', async () => {
-  await row.hover();
-  await row.locator('.row-more > summary').click();
-  await row.getByRole('button', { name: 'В фокус' }).click();
-  await row.locator('.focus-badge').filter({ hasText: 'СЕЙЧАС' }).waitFor();
 });
 
 await check('Завершение в Тетради и свёрнутый архив', async () => {
