@@ -1,0 +1,633 @@
+/* TODAY Notebook v5 — quiet, geometric, action-first.
+   This file is intentionally imported last and owns the Notebook presentation. */
+
+/* ---------- page ---------- */
+#root .notebook-page.v6-notebook{
+  width:100%!important;
+  max-width:none!important;
+  box-sizing:border-box!important;
+  padding:24px 20px 40px!important;
+}
+#root .v6-notebook .notebook-titlebar{
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:space-between!important;
+  min-height:52px!important;
+  margin:0 0 14px!important;
+}
+#root .v6-notebook .notebook-titlebar h1{
+  margin:0!important;
+  color:#f2f5f3!important;
+  font-size:24px!important;
+  font-weight:720!important;
+  letter-spacing:-.035em!important;
+  line-height:1.05!important;
+}
+#root .v6-notebook .notebook-titlebar p{
+  margin:6px 0 0!important;
+  color:#505a63!important;
+  font-size:9px!important;
+  font-weight:560!important;
+  letter-spacing:.01em!important;
+}
+
+/* ---------- attention return: tiny control, popover when opened ---------- */
+#root .v6-notebook .returned-panel.returned-collapsed{
+  position:relative!important;
+  z-index:80!important;
+  display:block!important;
+  width:max-content!important;
+  max-width:min(420px,calc(100vw - 40px))!important;
+  margin:-44px 0 14px auto!important;
+  padding:0!important;
+  overflow:visible!important;
+  border:0!important;
+  border-radius:7px!important;
+  background:transparent!important;
+}
+#root .v6-notebook .returned-collapsed>summary{
+  display:flex!important;
+  align-items:center!important;
+  gap:7px!important;
+  min-height:30px!important;
+  box-sizing:border-box!important;
+  padding:0 10px!important;
+  border:1px solid #292f35!important;
+  border-radius:7px!important;
+  background:#111519!important;
+  color:#77818a!important;
+  cursor:pointer!important;
+  list-style:none!important;
+  font-size:9px!important;
+}
+#root .v6-notebook .returned-collapsed>summary strong{
+  color:#8b959e!important;
+  font-size:9px!important;
+  font-weight:650!important;
+}
+#root .v6-notebook .returned-collapsed>summary span{
+  min-width:16px!important;
+  height:16px!important;
+  border-radius:8px!important;
+  background:#232a31!important;
+  color:#adb5bd!important;
+  font-size:8px!important;
+}
+#root .v6-notebook .returned-collapsed .returned-items{
+  position:absolute!important;
+  top:36px!important;
+  right:0!important;
+  width:min(410px,calc(100vw - 40px))!important;
+  box-sizing:border-box!important;
+  padding:7px!important;
+  border:1px solid #2c333a!important;
+  border-radius:9px!important;
+  background:#12161a!important;
+  box-shadow:0 18px 48px rgba(0,0,0,.42)!important;
+}
+
+/* ---------- add task: plus at rest, compact editor on intent ---------- */
+#root .v6-notebook .notebook-add-trigger{
+  display:grid!important;
+  place-items:center!important;
+  width:30px!important;
+  height:30px!important;
+  margin:0 0 8px 33px!important;
+  padding:0!important;
+  border:1px solid #2b3239!important;
+  border-radius:7px!important;
+  background:#111519!important;
+  color:#64707a!important;
+  font-size:17px!important;
+  font-weight:400!important;
+  line-height:1!important;
+  cursor:pointer!important;
+  transition:border-color .12s,background .12s,color .12s!important;
+}
+#root .v6-notebook .notebook-add-trigger:hover{
+  border-color:#3a444d!important;
+  background:#171c21!important;
+  color:#d6ddd9!important;
+}
+#root .v6-notebook .v6-new-task.compact-new-task{
+  display:inline-flex!important;
+  align-items:center!important;
+  width:auto!important;
+  max-width:min(680px,calc(100vw - 72px))!important;
+  min-height:36px!important;
+  box-sizing:border-box!important;
+  margin:0 0 8px 33px!important;
+  padding:4px 5px!important;
+  border:1px solid #303841!important;
+  border-radius:8px!important;
+  background:#111519!important;
+  box-shadow:none!important;
+}
+#root .v6-notebook .v6-new-task.compact-new-task>input{
+  flex:0 1 330px!important;
+  width:330px!important;
+  min-width:190px!important;
+  max-width:42vw!important;
+  padding:0 6px!important;
+  border:0!important;
+  background:transparent!important;
+  color:#eef2ef!important;
+  font-size:12px!important;
+  outline:none!important;
+}
+
+/* ---------- the notebook is one strict table ---------- */
+#root .v6-notebook-list{
+  width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  gap:0!important;
+  border-top:1px solid #252b30!important;
+}
+#root .v6-row{
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:34px minmax(0,1fr)!important;
+  width:100%!important;
+  min-height:58px!important;
+  height:58px!important;
+  margin:0!important;
+  box-sizing:border-box!important;
+  border:0!important;
+  border-bottom:1px solid #252b30!important;
+  background:transparent!important;
+  overflow:visible!important;
+  transition:background .11s,border-color .11s!important;
+}
+#root .v6-row:hover{
+  background:rgba(255,255,255,.012)!important;
+  border-bottom-color:#30373d!important;
+}
+#root .v6-row>.row-number{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:34px!important;
+  height:58px!important;
+  box-sizing:border-box!important;
+  padding:0!important;
+  color:#505a63!important;
+  font-size:9px!important;
+  font-weight:560!important;
+  font-variant-numeric:tabular-nums!important;
+}
+
+#root .v6-row .row-main{
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:minmax(250px,34%) 78px minmax(260px,1fr) 118px!important;
+  grid-template-rows:58px auto!important;
+  column-gap:16px!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:58px!important;
+  box-sizing:border-box!important;
+  padding:0 40px 0 18px!important;
+  border:0!important;
+  background:transparent!important;
+}
+
+/* Flatten the old wrapper so its children can sit on the table grid. */
+#root .v6-row .row-task-line{
+  display:contents!important;
+}
+
+/* Task name: intentionally a little brighter than the rest, but not loud. */
+#root .v6-row .row-title-open{
+  grid-column:1!important;
+  grid-row:1!important;
+  align-self:center!important;
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  height:auto!important;
+  max-height:none!important;
+  box-sizing:border-box!important;
+  margin:0!important;
+  padding:0 4px 0 15px!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  border:0!important;
+  background:transparent!important;
+  color:#dfe6e2!important;
+  font-size:13px!important;
+  font-weight:665!important;
+  letter-spacing:-.006em!important;
+  line-height:1.2!important;
+  text-align:left!important;
+  cursor:pointer!important;
+  transition:color .11s!important;
+}
+#root .v6-row .row-title-open:hover{color:#f3f6f4!important}
+
+/* Project dot occupies a fixed position, so every title starts at the same x. */
+#root .v6-row .project-dot{
+  position:absolute!important;
+  left:20px!important;
+  top:50%!important;
+  z-index:3!important;
+  width:6px!important;
+  height:6px!important;
+  margin:-3px 0 0!important;
+  border-radius:50%!important;
+  opacity:.9!important;
+}
+#root .v6-row .project-dot.dot-pasta{background:#d8ad43!important}
+#root .v6-row .project-dot.dot-kvep{background:#8e71e4!important}
+
+/* Created time is deliberately tiny. */
+#root .v6-row .task-created-time{
+  grid-column:2!important;
+  grid-row:1!important;
+  align-self:center!important;
+  justify-self:start!important;
+  margin:0!important;
+  padding:0!important;
+  color:#465059!important;
+  font-size:7.5px!important;
+  font-weight:520!important;
+  font-variant-numeric:tabular-nums!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+}
+#root .v6-row:hover .task-created-time{color:#5a646d!important}
+
+/* Current action owns the main reading area. */
+#root .v6-row .stream-line,
+#root .v6-row .stream-line:has(> .stream-event:first-of-type),
+#root .v6-row .stream-line:has(> .stream-event:nth-of-type(2)),
+#root .v6-row .stream-line:not(:has(> .history-more)){
+  position:relative!important;
+  grid-column:3!important;
+  grid-row:1!important;
+  align-self:center!important;
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:32px!important;
+  height:32px!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:visible!important;
+}
+#root .v6-row .stream-event,
+#root .v6-row .stream-event:first-of-type,
+#root .v6-row .stream-event:nth-of-type(2),
+#root .v6-row .stream-event:nth-of-type(3){
+  position:relative!important;
+  display:flex!important;
+  align-items:center!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  min-height:32px!important;
+  height:32px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+}
+#root .v6-row .stream-event:before{display:none!important}
+#root .v6-row .current-action-text{
+  display:block!important;
+  flex:1 1 auto!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:auto!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  border:0!important;
+  background:transparent!important;
+  color:#c8cfcc!important;
+  font-size:12px!important;
+  font-weight:520!important;
+  line-height:1.2!important;
+  text-align:left!important;
+  cursor:text!important;
+}
+#root .v6-row .current-action-text:hover{color:#e3e8e5!important}
+#root .v6-row .empty-current{
+  display:flex!important;
+  align-items:center!important;
+  width:max-content!important;
+  min-height:32px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  color:#59636c!important;
+  font-size:10px!important;
+}
+#root .v6-row .empty-current:hover{color:#8c969e!important}
+
+/* Waiting is the one secondary state that remains readable without hover. */
+#root .v6-row .waiting-status{
+  grid-column:4!important;
+  grid-row:1!important;
+  align-self:center!important;
+  justify-self:end!important;
+  max-width:112px!important;
+  margin:0!important;
+  padding:4px 7px!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  border:0!important;
+  border-radius:10px!important;
+  background:rgba(196,135,28,.10)!important;
+  color:#c99740!important;
+  font-size:8px!important;
+  font-weight:650!important;
+}
+#root .v6-row .stale-age{
+  grid-column:4!important;
+  grid-row:1!important;
+  align-self:center!important;
+  justify-self:end!important;
+  margin:0!important;
+  color:#655e5b!important;
+  font-size:7.5px!important;
+  white-space:nowrap!important;
+}
+
+/* Focus = one hairline and a tiny tint. Geometry never changes. */
+#root .v6-row.active-row{
+  position:relative!important;
+  top:auto!important;
+  z-index:5!important;
+  min-height:58px!important;
+  height:58px!important;
+  margin:0!important;
+  border-top:0!important;
+  border-bottom:1px solid #2b3730!important;
+  background:linear-gradient(90deg,rgba(80,165,108,.055),rgba(80,165,108,.012) 48%,transparent 80%)!important;
+  box-shadow:none!important;
+}
+#root .v6-row.active-row:before{
+  content:''!important;
+  position:absolute!important;
+  left:0!important;
+  top:9px!important;
+  bottom:9px!important;
+  width:1px!important;
+  background:#69c98a!important;
+  opacity:.9!important;
+}
+#root .v6-row.active-row .row-main{padding-top:0!important;padding-bottom:0!important}
+#root .v6-row.active-row .row-title-open{
+  color:#9ce4b3!important;
+  font-size:13px!important;
+  font-weight:685!important;
+}
+#root .v6-row.active-row .current-action-text{
+  color:#e1e7e3!important;
+  font-size:12px!important;
+  font-weight:560!important;
+}
+#root .v6-row .focus-badge{display:none!important}
+
+/* Old always-visible affordances are removed. */
+#root .v6-row .drag-handle{display:none!important}
+#root .v6-row .notebook-check{
+  position:absolute!important;
+  left:-27px!important;
+  top:20px!important;
+  z-index:10!important;
+  width:16px!important;
+  height:16px!important;
+  margin:0!important;
+  opacity:0!important;
+  pointer-events:none!important;
+  transition:opacity .1s!important;
+}
+#root .v6-row:hover .notebook-check,
+#root .v6-row:focus-within .notebook-check{
+  opacity:.8!important;
+  pointer-events:auto!important;
+}
+
+/* Context controls appear only when the row is intentionally touched. */
+#root .v6-row .history-more,
+#root .v6-row .next-step-trigger,
+#root .v6-row .stream-event .event-edit,
+#root .v6-row .stream-event .event-remind,
+#root .v6-row .stream-event .event-delete{
+  position:absolute!important;
+  top:5px!important;
+  z-index:20!important;
+  display:grid!important;
+  place-items:center!important;
+  width:22px!important;
+  height:22px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:5px!important;
+  background:#171c20!important;
+  color:#657079!important;
+  font-size:9px!important;
+  line-height:1!important;
+  opacity:0!important;
+  pointer-events:none!important;
+  cursor:pointer!important;
+  transition:opacity .1s,background .1s,color .1s!important;
+}
+#root .v6-row .history-more{right:100px!important;width:30px!important}
+#root .v6-row .stream-event .event-edit{right:74px!important}
+#root .v6-row .stream-event .event-remind{right:48px!important}
+#root .v6-row .stream-event .event-delete{right:22px!important;color:#8b6865!important}
+#root .v6-row .next-step-trigger{right:-4px!important;font-size:14px!important}
+#root .v6-row:hover .history-more,
+#root .v6-row:hover .next-step-trigger,
+#root .v6-row:hover .stream-event .event-edit,
+#root .v6-row:hover .stream-event .event-remind,
+#root .v6-row:hover .stream-event .event-delete,
+#root .v6-row:focus-within .history-more,
+#root .v6-row:focus-within .next-step-trigger,
+#root .v6-row:focus-within .stream-event .event-edit,
+#root .v6-row:focus-within .stream-event .event-remind,
+#root .v6-row:focus-within .stream-event .event-delete,
+#root .v6-row .history-more.open{
+  opacity:.82!important;
+  pointer-events:auto!important;
+}
+#root .v6-row .history-more:hover,
+#root .v6-row .next-step-trigger:hover,
+#root .v6-row .stream-event .event-edit:hover,
+#root .v6-row .stream-event .event-remind:hover{
+  background:#22282e!important;
+  color:#d5dcd8!important;
+}
+#root .v6-row .stream-event .event-delete:hover{background:#2b1c1c!important;color:#ff9289!important}
+#root .v6-row:hover .current-action-text,
+#root .v6-row:focus-within .current-action-text{padding-right:132px!important}
+
+/* Inline editing never changes row geometry. */
+#root .v6-row .stream-event form{
+  width:100%!important;
+  min-width:0!important;
+  height:30px!important;
+}
+#root .v6-row .stream-event form input{
+  width:100%!important;
+  min-width:0!important;
+  height:30px!important;
+  box-sizing:border-box!important;
+  padding:3px 7px!important;
+  border:1px solid #3b4d42!important;
+  border-radius:6px!important;
+  background:#141a17!important;
+  color:#edf2ef!important;
+  font-size:11px!important;
+  outline:none!important;
+}
+
+/* Next-step editor briefly uses the row's status lane, then disappears again. */
+#root .v6-row .step-input-wrap{
+  position:absolute!important;
+  right:0!important;
+  top:1px!important;
+  z-index:30!important;
+  width:min(260px,46%)!important;
+  min-width:170px!important;
+  height:30px!important;
+  margin:0!important;
+  padding:0!important;
+}
+#root .v6-row .step-input-wrap:before,
+#root .v6-row .step-input-wrap:after{display:none!important}
+#root .v6-row .step-input-wrap input{
+  width:100%!important;
+  height:30px!important;
+  box-sizing:border-box!important;
+  padding:3px 7px!important;
+  border:1px solid #34443a!important;
+  border-radius:6px!important;
+  background:#141a17!important;
+  color:#edf2ef!important;
+  font-size:10px!important;
+  outline:none!important;
+}
+
+/* Three-dot menu: right edge, invisible at rest. */
+#root .v6-row .row-more{
+  position:absolute!important;
+  top:17px!important;
+  right:4px!important;
+  z-index:50!important;
+}
+#root .v6-row .row-more>summary{
+  display:grid!important;
+  place-items:center!important;
+  width:24px!important;
+  height:24px!important;
+  border-radius:5px!important;
+  color:#59636c!important;
+  opacity:0!important;
+  cursor:pointer!important;
+}
+#root .v6-row:hover .row-more>summary,
+#root .v6-row:focus-within .row-more>summary,
+#root .v6-row .row-more[open]>summary{opacity:.85!important}
+#root .v6-row .row-more>summary:hover{background:#1c2227!important;color:#c7cfcb!important}
+
+/* History expands under the exact row without shifting any neighbouring columns. */
+#root .v6-row:has(.notebook-history-drawer.open){height:auto!important;min-height:58px!important}
+#root .v6-row .notebook-history-drawer{
+  grid-column:1/-1!important;
+  grid-row:2!important;
+  width:100%!important;
+  margin:0!important;
+  padding:0 40px 8px calc(34% + 146px)!important;
+  box-sizing:border-box!important;
+}
+#root .v6-row .notebook-history-inner{
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:6px!important;
+  border:1px solid #292f34!important;
+  border-radius:7px!important;
+  background:#101418!important;
+}
+#root .v6-row .notebook-history-cap{
+  min-height:24px!important;
+  color:#58626b!important;
+  font-size:8px!important;
+}
+#root .v6-row .notebook-history-item{min-height:31px!important}
+#root .v6-row .notebook-history-text{font-size:10px!important;color:#747e86!important}
+
+/* Completed work = one line until explicitly opened. */
+#root .completed-today{
+  margin:8px 0 0 34px!important;
+  border:0!important;
+  border-bottom:1px solid #242a2f!important;
+}
+#root .completed-summary{
+  min-height:32px!important;
+  padding:0 8px!important;
+  color:#505a63!important;
+  font-size:8px!important;
+}
+#root .completed-drawer .v6-row{opacity:.44!important}
+
+/* Scheduled items stay quiet and secondary. */
+#root .upcoming-notebook{
+  margin:14px 0 0 34px!important;
+  padding:10px 0!important;
+  border-top:1px solid #23292e!important;
+}
+#root .upcoming-notebook h3{color:#67717a!important;font-size:9px!important}
+
+@media(max-width:1050px){
+  #root .v6-row .row-main{
+    grid-template-columns:minmax(220px,37%) 64px minmax(220px,1fr) 94px!important;
+    column-gap:10px!important;
+    padding-right:34px!important;
+  }
+  #root .v6-row .row-title-open{font-size:12px!important}
+  #root .v6-row .current-action-text{font-size:11px!important}
+}
+
+@media(max-width:760px){
+  #root .notebook-page.v6-notebook{padding:16px 12px 34px!important}
+  #root .v6-notebook .returned-panel.returned-collapsed{margin:0 0 10px auto!important}
+  #root .v6-row{
+    grid-template-columns:26px minmax(0,1fr)!important;
+    min-height:68px!important;
+    height:68px!important;
+  }
+  #root .v6-row>.row-number{width:26px!important;height:68px!important}
+  #root .v6-row .row-main{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 58px!important;
+    grid-template-rows:32px 34px auto!important;
+    column-gap:8px!important;
+    min-height:68px!important;
+    padding:0 30px 0 13px!important;
+  }
+  #root .v6-row .row-title-open{grid-column:1!important;grid-row:1!important;padding-left:13px!important;font-size:11px!important}
+  #root .v6-row .project-dot{left:13px!important;top:16px!important}
+  #root .v6-row .task-created-time{grid-column:2!important;grid-row:1!important;justify-self:end!important}
+  #root .v6-row .stream-line{grid-column:1/-1!important;grid-row:2!important;height:30px!important;min-height:30px!important}
+  #root .v6-row .current-action-text{font-size:10px!important}
+  #root .v6-row .waiting-status,#root .v6-row .stale-age{position:absolute!important;right:0!important;top:36px!important}
+  #root .v6-row.active-row{height:68px!important;min-height:68px!important}
+  #root .v6-row .notebook-check{left:-21px!important;top:26px!important}
+  #root .v6-row .notebook-history-drawer{padding:0 30px 7px 39px!important}
+  #root .v6-row:has(.notebook-history-drawer.open){height:auto!important}
+  #root .v6-notebook .notebook-add-trigger{margin-left:26px!important}
+  #root .v6-notebook .v6-new-task.compact-new-task{margin-left:26px!important;max-width:calc(100vw - 52px)!important;flex-wrap:wrap!important}
+}
