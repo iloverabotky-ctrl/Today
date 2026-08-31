@@ -21,6 +21,22 @@ const check = async (name, fn) => {
   }
 };
 
+const describeCurrent = async (row, label) => {
+  const current = row.locator('.current-action-text');
+  const count = await current.count();
+  console.log(`DIAG ${label} current-count=${count}`);
+  if (count) {
+    console.log(`DIAG ${label} text=${JSON.stringify(await current.textContent())}`);
+    console.log(`DIAG ${label} style=${JSON.stringify(await current.evaluate((el) => {
+      const s = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      return { display: s.display, visibility: s.visibility, opacity: s.opacity, pointerEvents: s.pointerEvents, width: r.width, height: r.height, x: r.x, y: r.y };
+    }))}`);
+  }
+  console.log(`DIAG ${label} stream=${JSON.stringify((await row.locator('.stream-line').innerHTML()).slice(0, 1200))}`);
+  console.log(`DIAG ${label} storage=${JSON.stringify(await page.evaluate(() => JSON.parse(localStorage.getItem('today-cockpit-v2') || '{}').tasks?.[0]?.steps || []))}`);
+};
+
 await page.addInitScript(() => {
   localStorage.setItem('today-cockpit-v2', JSON.stringify({
     tasks: [],
@@ -55,6 +71,8 @@ await check('Первое действие', async () => {
   const nextInput = row.locator('.step-input-wrap input');
   await nextInput.fill('Первое действие');
   await nextInput.press('Enter');
+  await page.waitForTimeout(100);
+  await describeCurrent(row, 'after-first');
   const current = row.locator('.current-action-text');
   await current.waitFor();
   if ((await current.textContent())?.trim() !== 'Первое действие') throw new Error(`Текущий шаг: ${await current.textContent()}`);
@@ -66,6 +84,8 @@ await check('Добавление следующего шага', async () => {
   const nextInput = row.locator('.step-input-wrap input');
   await nextInput.fill('Второе действие');
   await nextInput.press('Enter');
+  await page.waitForTimeout(100);
+  await describeCurrent(row, 'after-second');
   const current = row.locator('.current-action-text');
   await current.waitFor();
   if ((await current.textContent())?.trim() !== 'Второе действие') throw new Error(`Текущий шаг: ${await current.textContent()}`);
