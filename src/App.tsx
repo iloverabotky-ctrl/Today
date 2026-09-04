@@ -381,6 +381,7 @@ function NotebookPage({ tasks, upcoming, activeTaskId, dueItems, now, dragId, se
     deleteStep={deleteStep}
     openReminder={openReminder}
     quickNext={() => selectAndNext(task.id)}
+    toggleCompleted={toggleCompleted}
   />;
 
   return <main className="notebook-page nb5-page">
@@ -435,8 +436,8 @@ function NotebookPage({ tasks, upcoming, activeTaskId, dueItems, now, dragId, se
   </main>;
 }
 
-function NotebookV5Row({ number, task, now, selected, active, waiting, onSelect, onDragStart, onDragEnd, onDrop, updateStep, deleteStep, openReminder, quickNext }: {
-  number: number; task: Task; now: number; selected: boolean; active: boolean; waiting: boolean; onSelect: () => void; onDragStart: () => void; onDragEnd: () => void; onDrop: () => void; updateStep: (taskId: string, stepId: string, patch: Partial<TaskStep>) => void; deleteStep: (taskId: string, stepId: string) => void; openReminder: (target: ReminderTarget) => void; quickNext: () => void;
+function NotebookV5Row({ number, task, now, selected, active, waiting, onSelect, onDragStart, onDragEnd, onDrop, updateStep, deleteStep, openReminder, quickNext, toggleCompleted }: {
+  number: number; task: Task; now: number; selected: boolean; active: boolean; waiting: boolean; onSelect: () => void; onDragStart: () => void; onDragEnd: () => void; onDrop: () => void; updateStep: (taskId: string, stepId: string, patch: Partial<TaskStep>) => void; deleteStep: (taskId: string, stepId: string) => void; openReminder: (target: ReminderTarget) => void; quickNext: () => void; toggleCompleted: (id: string) => void;
 }) {
   const current = task.steps.at(-1) || null;
   const historyCount = Math.max(0, task.steps.length - 1);
@@ -451,6 +452,7 @@ function NotebookV5Row({ number, task, now, selected, active, waiting, onSelect,
   return <article data-task-id={task.id} className={`nb5-row ${selected ? 'selected' : ''} ${active ? 'active' : ''} ${waiting ? 'waiting' : ''} ${task.notebookCompleted ? 'completed' : ''}`} onClick={onSelect} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); onDrop(); }}>
     <div className="nb5-number">{number}</div>
     <div className="nb5-title-cell">
+      <button type="button" className="nb5-quick-complete" onClick={(event) => { event.stopPropagation(); toggleCompleted(task.id); }} title={task.notebookCompleted ? 'Вернуть в работу' : 'Быстро выполнить'} aria-label={task.notebookCompleted ? 'Вернуть задачу в работу' : 'Быстро выполнить задачу'}><span>✓</span></button>
       <span className={`nb5-project-dot ${task.project}`} title={projectLabel(task.project) || 'Без проекта'} />
       <button type="button" className="nb5-title" title={task.title}>{task.title}</button>
       <span className="nb5-drag" draggable onDragStart={(event) => { event.stopPropagation(); onDragStart(); }} onDragEnd={onDragEnd} title="Перетащить">⋮⋮</span>
