@@ -18,3 +18,5 @@ jobs:
           git add .github/tmp/matrix-current.b64
           git commit -m "Add temporary encoded matrix snapshot"
           git push
+
+# rerun-refined
