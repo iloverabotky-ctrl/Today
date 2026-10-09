@@ -38,3 +38,5 @@ jobs:
           git add .github/tmp/matrix-current.png
           git commit -m "Add temporary matrix visual snapshot"
           git push
+
+# rerun-refined
