@@ -113,10 +113,16 @@ function renderTeam(root: HTMLElement) {
     const next = nextOneOnOne(m.id); const overdue = !!next && next.getTime() < Date.now();
     return `<article class="team-card" data-id="${m.id}"><div class="team-card-top"><div class="team-avatar">${esc(m.name.slice(0,1).toUpperCase())}</div><div class="team-person"><strong>${esc(m.name)}</strong><input class="team-role" value="${esc(m.role)}" placeholder="Роль / зона ответственности"></div></div><div class="team-signals"><div><b>${waitingCount(m.name)}</b><span>жду ответа</span></div><div class="${overdue?'signal-hot':''}"><b>${next?formatDate(next):'ещё не было'}</b><span>следующий 1:1</span></div></div><div class="team-card-actions"><button class="open-ooo">Открыть 1:1</button><button class="open-wait">Вопросы</button></div></article>`;
   }).join('')}</div>
-  <div class="team-add-panel" id="safe-add-panel" hidden><form id="safe-add-form"><input id="safe-name" placeholder="Имя сотрудника" autocomplete="off"><input id="safe-role" placeholder="Роль (необязательно)" autocomplete="off"><button>Добавить</button></form></div>`;
+  <div class="team-add-panel" id="safe-add-panel" hidden><form id="safe-add-form"><input id="safe-name" placeholder="Имя сотрудника" autocomplete="off"><input id="safe-role" placeholder="Роль (необязательно)" autocomplete="off"><button type="button" class="team-cancel" id="safe-cancel-member">Отмена</button><button>Добавить</button></form></div>`;
 
   root.querySelector<HTMLButtonElement>('#safe-add-member')!.onclick = () => {
     const p = root.querySelector<HTMLElement>('#safe-add-panel')!; p.hidden = !p.hidden; if (!p.hidden) root.querySelector<HTMLInputElement>('#safe-name')?.focus();
+  };
+  root.querySelector<HTMLButtonElement>('#safe-cancel-member')!.onclick = () => {
+    const p = root.querySelector<HTMLElement>('#safe-add-panel')!;
+    root.querySelector<HTMLInputElement>('#safe-name')!.value = '';
+    root.querySelector<HTMLInputElement>('#safe-role')!.value = '';
+    p.hidden = true;
   };
   root.querySelector<HTMLFormElement>('#safe-add-form')!.onsubmit = (e) => {
     e.preventDefault(); const name = root.querySelector<HTMLInputElement>('#safe-name')!.value.trim(); if (!name) return;
