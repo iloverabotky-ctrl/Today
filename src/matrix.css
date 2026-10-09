@@ -20,6 +20,9 @@
 }
 .matrix-heading h1{margin:0;font-size:28px;letter-spacing:-.035em}
 .matrix-heading p{margin:5px 0 0;color:#65707a;font-size:10px}
+.matrix-heading-tools{display:flex;align-items:center;gap:7px}
+.matrix-new-session{height:30px;padding:0 9px;border:1px solid #2a3238;border-radius:7px;background:transparent;color:#67727a;font-size:8px;cursor:pointer}
+.matrix-new-session:hover{border-color:#3a454d;color:#abb4b9;background:#14191d}
 .matrix-city-switch{
   display:flex;
   gap:3px;
@@ -115,7 +118,6 @@
 }
 .matrix-task:last-child{border-bottom:0}
 .matrix-task:hover{background:#12171b}
-.matrix-task.is-classified{opacity:.72}
 .matrix-task-number{
   display:grid;
   place-items:center;
@@ -428,6 +430,7 @@
 
 @media(max-width:900px){
   .matrix-heading{align-items:flex-start;flex-direction:column}
+  .matrix-heading-tools{width:100%;justify-content:space-between}
   .matrix-add{flex-wrap:wrap}
   .matrix-add>input{flex-basis:100%}
   .matrix-task-main{align-items:flex-start;flex-direction:column}
