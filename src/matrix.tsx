@@ -79,13 +79,15 @@ const QUADRANTS: Array<{
   icon: string;
   title: string;
   target: string;
+  rowLabel: string;
 }> = [
-  { id: 'urgent-important', icon: '●', title: 'Срочно + важно', target: 'Сегодня' },
-  { id: 'urgent-not-important', icon: '⚡', title: 'Срочно + не важно', target: 'Сегодня · ОП' },
-  { id: 'important-not-urgent', icon: '◆', title: 'Не срочно + важно', target: 'Неделя' },
-  { id: 'not-urgent-not-important', icon: '◷', title: 'Не срочно + не важно', target: 'Долгий ящик' },
+  { id: 'urgent-important', icon: '●', title: 'Срочно + важно', target: 'Сегодня', rowLabel: '● Сегодня' },
+  { id: 'urgent-not-important', icon: '⚡', title: 'Срочно + не важно', target: 'Сегодня · ОП', rowLabel: '⚡ Сегодня · ОП' },
+  { id: 'important-not-urgent', icon: '◆', title: 'Не срочно + важно', target: 'Неделя', rowLabel: '◆ Неделя' },
+  { id: 'not-urgent-not-important', icon: '◷', title: 'Не срочно + не важно', target: 'Долгий ящик', rowLabel: '◷ Долгий ящик' },
 ];
 
+const quadrantMeta = (id?: MatrixQuadrant) => QUADRANTS.find((item) => item.id === id);
 const projectLabel = (project: ProjectId) => project === 'pasta' ? 'Паста' : project === 'kvep' ? 'КВЭП' : '';
 const cityLabel = (city: CityId) => city === 'spb' ? 'СПб' : 'Краснодар';
 const formatDeadline = (timestamp: number | null) => timestamp
@@ -101,7 +103,9 @@ const fromDateTimeLocal = (value: string) => value ? new Date(value).getTime() :
 function MatrixTaskRow({
   number,
   task,
+  assignment,
   onDragStart,
+  onDragEnd,
   openSheet,
   updateTask,
   addStep,
@@ -109,7 +113,9 @@ function MatrixTaskRow({
 }: {
   number: number;
   task: Task;
+  assignment?: MatrixQuadrant;
   onDragStart: () => void;
+  onDragEnd: () => void;
   openSheet: () => void;
   updateTask: (taskId: string, patch: Partial<Task>) => void;
   addStep: (taskId: string, text: string) => void;
@@ -118,8 +124,9 @@ function MatrixTaskRow({
   const [expanded, setExpanded] = useState(false);
   const [newStep, setNewStep] = useState('');
   const current = task.steps.at(-1) || null;
+  const assigned = quadrantMeta(assignment);
 
-  return <article className="matrix-task" draggable onDragStart={onDragStart}>
+  return <article className={`matrix-task ${assignment ? 'is-assigned' : ''}`} draggable onDragStart={onDragStart} onDragEnd={onDragEnd}>
     <button className="matrix-task-number" type="button" onClick={openSheet}>{number}</button>
     <div className="matrix-task-body">
       <div className="matrix-task-main">
@@ -128,7 +135,8 @@ function MatrixTaskRow({
           <button type="button" className="matrix-task-title" onClick={openSheet}>{task.title}</button>
         </div>
         {current && <button className="matrix-task-current" type="button" onClick={openSheet}>{current.text}</button>}
-        <div className="matrix-task-meta">
+        <div className="matrix-task-status">
+          {assigned && <span className={`matrix-assignment qtag-${assignment}`}>{assigned.rowLabel}</span>}
           {task.deadline && <span className={task.deadline < Date.now() ? 'deadline overdue' : 'deadline'}>{formatDeadline(task.deadline)}</span>}
         </div>
       </div>
@@ -185,6 +193,7 @@ export function MatrixPage({
   updateTask,
   addStep,
   deleteTask,
+  restoreTask,
   openTask,
 }: {
   tasks: Task[];
@@ -198,10 +207,12 @@ export function MatrixPage({
   createTask: (title: string, city: CityId, project: ProjectId) => string | null;
   updateTask: (taskId: string, patch: Partial<Task>) => void;
   addStep: (taskId: string, text: string) => void;
-  deleteTask: (taskId: string) => void;
+  deleteTask: (taskId: string) => Task | null;
+  restoreTask: (task: Task, quadrant?: MatrixQuadrant) => void;
   openTask: (taskId: string) => void;
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverQuadrant, setDragOverQuadrant] = useState<MatrixQuadrant | null>(null);
   const [sessions, setSessions] = useState<MatrixSessions>(loadMatrixSessions);
   const [manual, setManual] = useState<Record<MatrixQuadrant, string>>({
     'urgent-important': '',
@@ -215,6 +226,7 @@ export function MatrixPage({
   const [newCity, setNewCity] = useState<CityId>(city === 'krasnodar' ? 'krasnodar' : 'spb');
   const [inboxPage, setInboxPage] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [deleted, setDeleted] = useState<{ task: Task; quadrant?: MatrixQuadrant } | null>(null);
 
   useEffect(() => {
     if (city !== 'all') setNewCity(city);
@@ -224,6 +236,12 @@ export function MatrixPage({
   useEffect(() => {
     localStorage.setItem(MATRIX_SESSION_KEY, JSON.stringify(sessions));
   }, [sessions]);
+
+  useEffect(() => {
+    if (!deleted) return;
+    const timer = window.setTimeout(() => setDeleted(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [deleted]);
 
   const matrixTasks = useMemo(() => tasks
     .filter((task) =>
@@ -256,12 +274,15 @@ export function MatrixPage({
     return [...ordered, ...missing];
   }, [sessionOrder, byId, matrixTasks]);
 
-  const inboxTasks = orderedTasks.filter((task) => !assignments[task.id]);
+  // Important UX rule: assigning to a quadrant does NOT remove the task from this list.
+  // It disappears only after the explicit Transfer action.
+  const inboxTasks = orderedTasks;
   const pageSize = 5;
   const totalPages = Math.max(1, Math.ceil(inboxTasks.length / pageSize));
   const safeInboxPage = Math.min(inboxPage, totalPages - 1);
   const visibleInbox = inboxTasks.slice(safeInboxPage * pageSize, safeInboxPage * pageSize + pageSize);
   const selectedTask = selectedId ? tasks.find((task) => task.id === selectedId) || null : null;
+  const assignedCount = orderedTasks.filter((task) => Boolean(assignments[task.id])).length;
 
   useEffect(() => {
     if (inboxPage > totalPages - 1) setInboxPage(Math.max(0, totalPages - 1));
@@ -290,22 +311,40 @@ export function MatrixPage({
     setNewTaskOpen(false);
   };
 
+  const remove = (task: Task) => {
+    const snapshot = deleteTask(task.id);
+    if (snapshot) setDeleted({ task: snapshot, quadrant: assignments[task.id] });
+    if (selectedId === task.id) setSelectedId(null);
+  };
+
+  const undoDelete = () => {
+    if (!deleted) return;
+    restoreTask(deleted.task, deleted.quadrant);
+    setDeleted(null);
+  };
+
   return <main className="matrix-page matrix-ios">
     <div className="matrix-heading">
-      <div><h1>Матрица</h1><p>Разложи приоритеты → перенеси на Доску.</p></div>
+      <div>
+        <h1>Матрица</h1>
+        <p>Сначала приоритет → потом перенос на Доску.</p>
+      </div>
       <div className="matrix-heading-tools">
-        <button type="button" className="matrix-new-session" onClick={resetSession}>Новый разбор</button>
         <div className="matrix-city-switch">
-          <button className={city === 'all' ? 'active' : ''} onClick={() => setCity('all')}>Все</button>
+          <button className={city === 'all' ? 'active' : ''} onClick={() => setCity('all')}>Все <span>{tasks.filter((task) => task.columnId === 'pool' && !task.inNotebook && !transferred[task.id]).length}</span></button>
           <button className={city === 'spb' ? 'active' : ''} onClick={() => setCity('spb')}>СПб</button>
           <button className={city === 'krasnodar' ? 'active' : ''} onClick={() => setCity('krasnodar')}>Краснодар</button>
         </div>
+        <details className="matrix-more">
+          <summary>•••</summary>
+          <div><button type="button" onClick={resetSession}>Новый разбор</button></div>
+        </details>
       </div>
     </div>
 
     <section className="matrix-inbox">
       <div className="matrix-section-head">
-        <div><strong>Входящие</strong><span>{inboxTasks.length}</span></div>
+        <div><strong>Входящие</strong><span>{inboxTasks.length}</span>{assignedCount > 0 && <small>{assignedCount} распределено</small>}</div>
         <button type="button" className="matrix-inbox-add" onClick={() => setNewTaskOpen((value) => !value)}>＋</button>
       </div>
 
@@ -321,16 +360,18 @@ export function MatrixPage({
 
       <div className="matrix-task-list">
         {visibleInbox.length === 0
-          ? <div className="matrix-empty-list">Входящие разобраны.</div>
+          ? <div className="matrix-empty-list">Здесь появятся новые задачи для разбора.</div>
           : visibleInbox.map((task) => <MatrixTaskRow
               key={task.id}
               number={numberById.get(task.id) || 0}
               task={task}
+              assignment={assignments[task.id]}
               onDragStart={() => setDragId(task.id)}
+              onDragEnd={() => { setDragId(null); setDragOverQuadrant(null); }}
               openSheet={() => setSelectedId(task.id)}
               updateTask={updateTask}
               addStep={addStep}
-              removeTask={() => deleteTask(task.id)}
+              removeTask={() => remove(task)}
             />)}
       </div>
 
@@ -348,9 +389,18 @@ export function MatrixPage({
           const ids = assigned.map((task) => task.id);
           return <section
             key={quadrant.id}
-            className={`matrix-quadrant q-${quadrant.id}`}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={() => { if (dragId) assignTask(dragId, quadrant.id); setDragId(null); }}
+            className={`matrix-quadrant q-${quadrant.id} ${dragOverQuadrant === quadrant.id ? 'is-drag-over' : ''}`}
+            onDragEnter={(event) => { event.preventDefault(); if (dragId) setDragOverQuadrant(quadrant.id); }}
+            onDragOver={(event) => { event.preventDefault(); if (dragId) setDragOverQuadrant(quadrant.id); }}
+            onDragLeave={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOverQuadrant(null);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              if (dragId) assignTask(dragId, quadrant.id);
+              setDragId(null);
+              setDragOverQuadrant(null);
+            }}
           >
             <header>
               <div className="matrix-q-title"><span className="matrix-q-icon">{quadrant.icon}</span><strong>{quadrant.title}</strong><b>{assigned.length}</b></div>
@@ -363,11 +413,11 @@ export function MatrixPage({
                   key={task.id}
                   type="button"
                   className="matrix-number-chip"
+                  data-title={task.title}
                   onClick={() => setSelectedId(task.id)}
                   onContextMenu={(event) => { event.preventDefault(); clearAssignment(task.id); }}
-                  title={task.title}
                 >{numberById.get(task.id)}</button>)}
-                {assigned.length === 0 && <span className="matrix-q-placeholder">Перетащи задачу сюда</span>}
+                {assigned.length === 0 && <span className="matrix-q-placeholder">{dragId ? 'Отпусти здесь' : 'Перетащи номер сюда'}</span>}
               </div>
 
               <form className="matrix-manual" onSubmit={(event) => { event.preventDefault(); applyNumbers(quadrant.id); }}>
@@ -376,14 +426,22 @@ export function MatrixPage({
               </form>
             </div>
 
-            <button type="button" className="matrix-transfer" disabled={assigned.length === 0} onClick={() => transferQuadrant(quadrant.id, ids)}>Перенести <span>→</span></button>
+            <button type="button" className="matrix-transfer" disabled={assigned.length === 0} onClick={() => transferQuadrant(quadrant.id, ids)}>
+              Перенести {assigned.length || ''} → {quadrant.target}
+            </button>
           </section>;
         })}
       </div>
     </section>
 
-    <div className="matrix-footnote"><span>ПКМ по номеру — вернуть во входящие.</span><span>После «Перенести» задача исчезает из Матрицы и появляется на Доске.</span></div>
+    <div className="matrix-footnote"><span>Задача остаётся во «Входящих», пока ты не нажмёшь «Перенести».</span><span>ПКМ по номеру — снять приоритет.</span></div>
 
     {selectedTask && <MatrixSheet task={selectedTask} number={numberById.get(selectedTask.id) || 0} close={() => setSelectedId(null)} openTask={openTask} />}
+
+    {deleted && <div className="matrix-undo-toast">
+      <span>Задача удалена</span>
+      <button type="button" onClick={undoDelete}>Отменить</button>
+      <button type="button" className="close" onClick={() => setDeleted(null)}>×</button>
+    </div>}
   </main>;
 }
