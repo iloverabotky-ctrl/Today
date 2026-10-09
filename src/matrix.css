@@ -439,3 +439,6 @@
   .matrix-board{padding-left:0;padding-top:0}
   .matrix-footnote{padding-left:0;padding-right:0;flex-direction:column}
 }
+
+.board-heading-actions{display:flex;align-items:center;gap:4px}
+@media(max-width:760px){.board-heading-actions{align-items:flex-end;flex-direction:column}}
