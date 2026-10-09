@@ -81,10 +81,10 @@ const QUADRANTS: Array<{
   target: string;
   rowLabel: string;
 }> = [
-  { id: 'urgent-important', icon: '●', title: 'Срочно + важно', target: 'Сегодня', rowLabel: '● Сегодня' },
-  { id: 'urgent-not-important', icon: '⚡', title: 'Срочно + не важно', target: 'Сегодня · ОП', rowLabel: '⚡ Сегодня · ОП' },
-  { id: 'important-not-urgent', icon: '◆', title: 'Не срочно + важно', target: 'Неделя', rowLabel: '◆ Неделя' },
-  { id: 'not-urgent-not-important', icon: '◷', title: 'Не срочно + не важно', target: 'Долгий ящик', rowLabel: '◷ Долгий ящик' },
+  { id: 'urgent-important', icon: '🔥', title: 'Срочно + важно', target: 'Сегодня', rowLabel: 'Сегодня' },
+  { id: 'urgent-not-important', icon: '⚡', title: 'Срочно + не важно', target: 'Сегодня · ОП', rowLabel: 'Сегодня · ОП' },
+  { id: 'important-not-urgent', icon: '🍃', title: 'Не срочно + важно', target: 'Неделя', rowLabel: 'Неделя' },
+  { id: 'not-urgent-not-important', icon: '◷', title: 'Не срочно + не важно', target: 'Долгий ящик', rowLabel: 'Долгий ящик' },
 ];
 
 const quadrantMeta = (id?: MatrixQuadrant) => QUADRANTS.find((item) => item.id === id);
@@ -417,18 +417,19 @@ export function MatrixPage({
                   onClick={() => setSelectedId(task.id)}
                   onContextMenu={(event) => { event.preventDefault(); clearAssignment(task.id); }}
                 >{numberById.get(task.id)}</button>)}
-                {assigned.length === 0 && <span className="matrix-q-placeholder">{dragId ? 'Отпусти здесь' : 'Перетащи номер сюда'}</span>}
+                {assigned.length === 0 && <span className="matrix-q-placeholder">{dragId ? 'Отпусти здесь' : 'Перетащи задачу'}</span>}
               </div>
-
-              <form className="matrix-manual" onSubmit={(event) => { event.preventDefault(); applyNumbers(quadrant.id); }}>
-                <input value={manual[quadrant.id]} onChange={(event) => setManual((current) => ({ ...current, [quadrant.id]: event.target.value }))} placeholder="№ 1, 4, 7" />
-                <button>Enter</button>
-              </form>
             </div>
 
-            <button type="button" className="matrix-transfer" disabled={assigned.length === 0} onClick={() => transferQuadrant(quadrant.id, ids)}>
-              Перенести {assigned.length || ''} → {quadrant.target}
-            </button>
+            <div className="matrix-q-footer">
+              <form className="matrix-manual" onSubmit={(event) => { event.preventDefault(); applyNumbers(quadrant.id); }}>
+                <input value={manual[quadrant.id]} onChange={(event) => setManual((current) => ({ ...current, [quadrant.id]: event.target.value }))} placeholder="Добавить №" />
+                <button>↵</button>
+              </form>
+              <button type="button" className="matrix-transfer" disabled={assigned.length === 0} onClick={() => transferQuadrant(quadrant.id, ids)}>
+                Перенести {assigned.length || ''} → {quadrant.target}
+              </button>
+            </div>
           </section>;
         })}
       </div>
