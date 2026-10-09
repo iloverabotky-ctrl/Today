@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardColumnId, CityId, ColumnId, ProjectId, Store, Task, TaskStep } from './types';
 import { defaultColumnTitles, demo, STORAGE_KEY } from './data';
+import { MATRIX_STORAGE_KEY, MatrixPage, loadMatrixAssignments, type MatrixAssignments, type MatrixCityFilter, type MatrixQuadrant } from './matrix';
 
 const BOARD_COLUMNS: BoardColumnId[] = ['today', 'week', 'month', 'delegated', 'done'];
 const DAY = 86_400_000;
 const TEAM_KEY = 'today-team-v1';
-type Page = 'notebook' | 'board' | 'people';
+type Page = 'notebook' | 'board' | 'matrix' | 'people';
 type ReminderTarget = { taskId: string; stepId?: string } | null;
 
 const newId = () => crypto.randomUUID();
@@ -122,6 +123,8 @@ function App() {
   const [store, setStore] = useState<Store>(loadStore);
   const [page, setPage] = useState<Page>('notebook');
   const [boardCity, setBoardCity] = useState<CityId>('spb');
+  const [matrixCity, setMatrixCity] = useState<MatrixCityFilter>('all');
+  const [matrixAssignments, setMatrixAssignments] = useState<MatrixAssignments>(loadMatrixAssignments);
   const [now, setNow] = useState(Date.now());
   const [dragBoardId, setDragBoardId] = useState<string | null>(null);
   const [dragNotebookId, setDragNotebookId] = useState<string | null>(null);
@@ -136,6 +139,7 @@ function App() {
   const notified = useRef(new Set<string>());
 
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(store)), [store]);
+  useEffect(() => localStorage.setItem(MATRIX_STORAGE_KEY, JSON.stringify(matrixAssignments)), [matrixAssignments]);
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(timer); }, []);
   useEffect(() => { if (quickOpen) window.setTimeout(() => quickRef.current?.focus(), 0); }, [quickOpen]);
 
@@ -176,6 +180,7 @@ function App() {
       if (event.altKey && event.key === '1') setPage('notebook');
       if (event.altKey && event.key === '2') setPage('board');
       if (event.altKey && event.key === '3') setPage('people');
+      if (event.altKey && event.key === '4') setPage('matrix');
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -191,6 +196,42 @@ function App() {
   }), [store.tasks, store.activeTaskId, now]);
   const notebookUpcoming = useMemo(() => store.tasks.filter((task) => task.inNotebook && task.columnId !== 'done' && task.notebookAt !== null && task.notebookAt > now).sort((a, b) => (a.notebookAt || 0) - (b.notebookAt || 0)), [store.tasks, now]);
   const waitingTasks = useMemo(() => store.tasks.filter((task) => task.columnId !== 'done' && taskIsWaiting(task)), [store.tasks]);
+
+  const clearMatrixAssignment = (taskId: string) => setMatrixAssignments((current) => {
+    if (!current[taskId]) return current;
+    const next = { ...current };
+    delete next[taskId];
+    return next;
+  });
+
+  const assignMatrixTask = (taskId: string, quadrant: MatrixQuadrant) => {
+    setMatrixAssignments((current) => ({ ...current, [taskId]: quadrant }));
+    setStore((current) => {
+      const moving = current.tasks.find((task) => task.id === taskId);
+      if (!moving || moving.columnId === 'done') return current;
+      if (moving.columnId === 'delegated') return current;
+      const targetColumn: ColumnId =
+        quadrant === 'important-not-urgent'
+          ? 'week'
+          : quadrant === 'not-urgent-not-important'
+            ? 'pool'
+            : 'today';
+      const targetOrder = nextBoardOrder(current.tasks, targetColumn, moving.city);
+      return {
+        ...current,
+        activeTaskId: current.activeTaskId === taskId ? null : current.activeTaskId,
+        tasks: current.tasks.map((task) => task.id === taskId ? {
+          ...task,
+          columnId: targetColumn,
+          boardOrder: targetOrder,
+          inNotebook: false,
+          notebookAt: null,
+          notebookCompleted: false,
+          completedAt: null,
+        } : task),
+      };
+    });
+  };
 
   const updateTask = (id: string, patch: Partial<Task>) => setStore((current) => ({ ...current, tasks: current.tasks.map((task) => task.id === id ? { ...task, ...patch } : task) }));
   const createTask = (title: string, columnId: ColumnId, city: CityId, project: ProjectId = 'none', inNotebook = false) => {
@@ -227,11 +268,16 @@ function App() {
     if (columnId === 'delegated') window.setTimeout(() => setDelegateTaskId(taskId), 0);
   };
   const toggleNotebookCompleted = (taskId: string) => updateTask(taskId, { notebookCompleted: !store.tasks.find((task) => task.id === taskId)?.notebookCompleted });
-  const finishTask = (taskId: string) => setStore((current) => ({ ...current, activeTaskId: current.activeTaskId === taskId ? null : current.activeTaskId, tasks: current.tasks.map((task) => task.id === taskId ? { ...task, columnId: 'done', inNotebook: false, notebookAt: null, notebookCompleted: false, completedAt: Date.now(), waitingPerson: '', returnAt: null } : task) }));
+  const finishTask = (taskId: string) => {
+    clearMatrixAssignment(taskId);
+    setStore((current) => ({ ...current, activeTaskId: current.activeTaskId === taskId ? null : current.activeTaskId, tasks: current.tasks.map((task) => task.id === taskId ? { ...task, columnId: 'done', inNotebook: false, notebookAt: null, notebookCompleted: false, completedAt: Date.now(), waitingPerson: '', returnAt: null } : task) }));
+  };
   const moveBoardTask = (taskId: string, targetColumn: BoardColumnId, beforeId?: string) => {
     let shouldChooseDelegate = false;
+    let changedColumn = false;
     setStore((current) => {
       const moving = current.tasks.find((task) => task.id === taskId); if (!moving) return current;
+      changedColumn = moving.columnId !== targetColumn;
       shouldChooseDelegate = targetColumn === 'delegated' && moving.columnId !== 'delegated';
       const siblings = current.tasks.filter((task) => !task.inNotebook && task.city === moving.city && task.columnId === targetColumn && task.id !== taskId).sort((a, b) => a.boardOrder - b.boardOrder);
       const index = beforeId ? siblings.findIndex((task) => task.id === beforeId) : -1;
@@ -240,6 +286,7 @@ function App() {
       const order = new Map(siblings.map((task, i) => [task.id, i]));
       return { ...current, tasks: current.tasks.map((task) => task.id === taskId ? { ...moved, boardOrder: order.get(task.id) ?? 0 } : order.has(task.id) ? { ...task, boardOrder: order.get(task.id)! } : task) };
     });
+    if (changedColumn) clearMatrixAssignment(taskId);
     if (shouldChooseDelegate) window.setTimeout(() => setDelegateTaskId(taskId), 0);
   };
   const reorderNotebook = (taskId: string, beforeId?: string) => setStore((current) => {
@@ -274,6 +321,7 @@ function App() {
   };
 
   const openTaskFocus = (taskId: string) => { setStore((current) => ({ ...current, activeTaskId: taskId })); setTaskFocusId(taskId); };
+  const openTaskDetails = (taskId: string) => setTaskFocusId(taskId);
   const focusTask = taskFocusId ? store.tasks.find((task) => task.id === taskFocusId) || null : null;
   const reminderTask = reminderTarget ? store.tasks.find((task) => task.id === reminderTarget.taskId) || null : null;
   const reminderStep = reminderTask && reminderTarget?.stepId ? reminderTask.steps.find((step) => step.id === reminderTarget.stepId) || null : null;
@@ -286,15 +334,17 @@ function App() {
       <nav className="page-switch" aria-label="Разделы TODAY">
         <button className={page === 'notebook' ? 'active' : ''} onClick={() => setPage('notebook')}>Тетрадь <span>{notebookReady.length}</span></button>
         <button className={page === 'board' ? 'active' : ''} onClick={() => setPage('board')}>Доска</button>
+        <button className={page === 'matrix' ? 'active' : ''} onClick={() => setPage('matrix')}>Матрица</button>
         <button className={page === 'people' ? 'active' : ''} onClick={() => setPage('people')}>Жду <span>{waitingTasks.length}</span></button>
       </nav>
       <div className="top-actions"><button className="quick-button" onClick={() => setQuickOpen(true)}>＋ <span>Быстро</span><kbd>N</kbd></button><details className="more-menu"><summary>•••</summary><div className="more-popover"><button className="menu-action" onClick={enableNotifications}>Включить уведомления</button></div></details></div>
     </header>
 
     {page === 'notebook' && <NotebookPage tasks={notebookReady} upcoming={notebookUpcoming} activeTaskId={store.activeTaskId} dueItems={dueItems} now={now} dragId={dragNotebookId} setDragId={setDragNotebookId} createTask={(title, project) => createTask(title, 'today', boardCity, project, true)} updateTask={updateTask} addStep={addStep} updateStep={updateStep} deleteStep={deleteStep} openTask={openTaskFocus} requestActivate={requestActivate} reorderNotebook={reorderNotebook} openReminder={setReminderTarget} moveToBoard={moveNotebookToBoard} toggleCompleted={toggleNotebookCompleted} finishTask={finishTask} showNow={(id) => moveToNotebook(id, Date.now())} />}
-    {page === 'board' && <BoardPage store={store} city={boardCity} setCity={setBoardCity} now={now} dragId={dragBoardId} setDragId={setDragBoardId} createTask={createTask} moveTask={moveBoardTask} openSchedule={setScheduleTaskId} openReminder={(id) => setReminderTarget({ taskId: id })} openDelegate={setDelegateTaskId} finishTask={finishTask} />}
+    {page === 'board' && <BoardPage store={store} city={boardCity} setCity={setBoardCity} now={now} dragId={dragBoardId} setDragId={setDragBoardId} createTask={createTask} moveTask={moveBoardTask} openSchedule={setScheduleTaskId} openReminder={(id) => setReminderTarget({ taskId: id })} openDelegate={setDelegateTaskId} finishTask={finishTask} matrixAssignments={matrixAssignments} openMatrix={() => setPage('matrix')} />}
+    {page === 'matrix' && <MatrixPage tasks={store.tasks} city={matrixCity} setCity={setMatrixCity} assignments={matrixAssignments} assignTask={assignMatrixTask} clearAssignment={clearMatrixAssignment} createTask={(title, city, project) => createTask(title, 'pool', city, project)} updateTask={updateTask} addStep={addStep} openTask={openTaskDetails} />}
     {page === 'people' && <PeoplePage tasks={store.tasks} now={now} openReminder={setReminderTarget} />}
-    {focusTask && <TaskFocusView task={focusTask} now={now} close={() => setTaskFocusId(null)} updateTask={updateTask} addStep={addStep} updateStep={updateStep} deleteStep={deleteStep} openReminder={setReminderTarget} toggleCompleted={toggleNotebookCompleted} finishTask={finishTask} />}
+    {focusTask && <TaskFocusView task={focusTask} now={now} backLabel={page === 'matrix' ? '← Вернуться в Матрицу' : '← Вернуться в Тетрадь'} close={() => setTaskFocusId(null)} updateTask={updateTask} addStep={addStep} updateStep={updateStep} deleteStep={deleteStep} openReminder={setReminderTarget} toggleCompleted={toggleNotebookCompleted} finishTask={finishTask} />}
 
     {quickOpen && <QuickCapture value={quickText} setValue={setQuickText} inputRef={quickRef} close={() => { setQuickOpen(false); setQuickText(''); }} submit={() => { if (!quickText.trim()) return; createTask(quickText, 'pool', boardCity); setQuickText(''); setQuickOpen(false); }} />}
     {reminderTask && <ReminderModal task={reminderTask} step={reminderStep} teamNames={teamNames} close={() => setReminderTarget(null)} save={(person, at) => saveReminder(reminderTarget, person, at)} clear={() => clearReminder(reminderTarget)} />}
@@ -516,15 +566,15 @@ function NotebookV5Inspector({ task, now, active, close, openTask, requestActiva
   </aside>;
 }
 
-function TaskFocusView({ task, now, close, updateTask, addStep, updateStep, deleteStep, openReminder, toggleCompleted, finishTask }: {
-  task: Task; now: number; close: () => void; updateTask: (id: string, patch: Partial<Task>) => void; addStep: (id: string, text: string) => void; updateStep: (taskId: string, stepId: string, patch: Partial<TaskStep>) => void; deleteStep: (taskId: string, stepId: string) => void; openReminder: (target: ReminderTarget) => void; toggleCompleted: (id: string) => void; finishTask: (id: string) => void;
+function TaskFocusView({ task, now, backLabel, close, updateTask, addStep, updateStep, deleteStep, openReminder, toggleCompleted, finishTask }: {
+  task: Task; now: number; backLabel: string; close: () => void; updateTask: (id: string, patch: Partial<Task>) => void; addStep: (id: string, text: string) => void; updateStep: (taskId: string, stepId: string, patch: Partial<TaskStep>) => void; deleteStep: (taskId: string, stepId: string) => void; openReminder: (target: ReminderTarget) => void; toggleCompleted: (id: string) => void; finishTask: (id: string) => void;
 }) {
   const [next, setNext] = useState('');
   const current = task.steps.at(-1) || null;
   const submitNext = () => { if (!next.trim()) return; addStep(task.id, next); setNext(''); };
   return <div className="task-focus-overlay">
     <div className="task-focus-shell">
-      <div className="task-focus-top"><button className="task-focus-back" onClick={close}>← Вернуться в Тетрадь</button><span className="task-focus-mode">Одна задача · без отвлечений</span></div>
+      <div className="task-focus-top"><button className="task-focus-back" onClick={close}>{backLabel}</button><span className="task-focus-mode">Одна задача · без отвлечений</span></div>
       <textarea className="task-focus-title" value={task.title} rows={2} onChange={(event) => updateTask(task.id, { title: event.target.value })} />
       <div className="task-focus-meta">{projectLabel(task.project) && <span className={`task-focus-project ${task.project}`}>{projectLabel(task.project)}</span>}<span>{ageLabel(lastTouched(task), now)}</span>{taskIsWaiting(task) && <button className="task-focus-wait" onClick={() => openReminder({ taskId: task.id })}>ЖДУ</button>}</div>
       {current ? <section className="task-focus-current"><small>Сейчас</small><strong>{current.text}</strong></section> : <section className="task-focus-current empty"><small>Сейчас</small><strong>Добавь первое действие ниже</strong></section>}
@@ -536,24 +586,25 @@ function TaskFocusView({ task, now, close, updateTask, addStep, updateStep, dele
   </div>;
 }
 
-function BoardPage({ store, city, setCity, now, dragId, setDragId, createTask, moveTask, openSchedule, openReminder, openDelegate, finishTask }: {
-  store: Store; city: CityId; setCity: (city: CityId) => void; now: number; dragId: string | null; setDragId: (id: string | null) => void; createTask: (title: string, column: ColumnId, city: CityId, project?: ProjectId) => string | null; moveTask: (id: string, column: BoardColumnId, beforeId?: string) => void; openSchedule: (id: string) => void; openReminder: (id: string) => void; openDelegate: (id: string) => void; finishTask: (id: string) => void;
+function BoardPage({ store, city, setCity, now, dragId, setDragId, createTask, moveTask, openSchedule, openReminder, openDelegate, finishTask, matrixAssignments, openMatrix }: {
+  store: Store; city: CityId; setCity: (city: CityId) => void; now: number; dragId: string | null; setDragId: (id: string | null) => void; createTask: (title: string, column: ColumnId, city: CityId, project?: ProjectId) => string | null; moveTask: (id: string, column: BoardColumnId, beforeId?: string) => void; openSchedule: (id: string) => void; openReminder: (id: string) => void; openDelegate: (id: string) => void; finishTask: (id: string) => void; matrixAssignments: MatrixAssignments; openMatrix: () => void;
 }) {
   const [title, setTitle] = useState(''); const [column, setColumn] = useState<BoardColumnId>('today'); const [project, setProject] = useState<ProjectId>('none');
+  const longboxCount = store.tasks.filter((task) => task.city === city && task.columnId === 'pool' && matrixAssignments[task.id] === 'not-urgent-not-important').length;
   const submit = () => { const id = createTask(title, column, city, project); if (!id) return; setTitle(''); if (column === 'delegated') window.setTimeout(() => openDelegate(id), 0); };
-  return <main className="board-page v6-board"><div className="page-heading board-heading"><div><h1>Доска</h1><p>Отдельные горизонты СПб и Краснодара</p></div><div className="city-switch"><button className={city === 'spb' ? 'active' : ''} onClick={() => setCity('spb')}>Санкт-Петербург</button><button className={city === 'krasnodar' ? 'active' : ''} onClick={() => setCity('krasnodar')}>Краснодар</button></div></div>
+  return <main className="board-page v6-board"><div className="page-heading board-heading"><div><h1>Доска</h1><p>Отдельные горизонты СПб и Краснодара</p></div><div className="board-heading-actions"><button type="button" className="board-longbox-link" onClick={openMatrix}>Долгий ящик · {longboxCount}</button><div className="city-switch"><button className={city === 'spb' ? 'active' : ''} onClick={() => setCity('spb')}>Санкт-Петербург</button><button className={city === 'krasnodar' ? 'active' : ''} onClick={() => setCity('krasnodar')}>Краснодар</button></div></div></div>
     <form className="board-big-add" onSubmit={(event) => { event.preventDefault(); submit(); }}><span>＋</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Добавить задачу на доску..." /><ProjectPicker value={project} setValue={setProject} /><select value={column} onChange={(event) => setColumn(event.target.value as BoardColumnId)}>{BOARD_COLUMNS.filter((item) => item !== 'done').map((item) => <option value={item} key={item}>{store.columnTitles[item]}</option>)}</select><button>Добавить задачу</button></form>
     <div className="board-scroll"><div className="board-grid">{BOARD_COLUMNS.map((columnId) => {
       const tasks = store.tasks.filter((task) => !task.inNotebook && task.city === city && task.columnId === columnId).sort((a, b) => a.boardOrder - b.boardOrder);
-      return <BoardColumn key={columnId} columnId={columnId} title={store.columnTitles[columnId]} tasks={tasks} now={now} dragId={dragId} setDragId={setDragId} moveTask={moveTask} openSchedule={openSchedule} openReminder={openReminder} openDelegate={openDelegate} finishTask={finishTask} />;
+      return <BoardColumn key={columnId} columnId={columnId} title={store.columnTitles[columnId]} tasks={tasks} now={now} dragId={dragId} setDragId={setDragId} moveTask={moveTask} openSchedule={openSchedule} openReminder={openReminder} openDelegate={openDelegate} finishTask={finishTask} matrixAssignments={matrixAssignments} />;
     })}</div></div>
   </main>;
 }
 
-function BoardColumn({ columnId, title, tasks, now, dragId, setDragId, moveTask, openSchedule, openReminder, openDelegate, finishTask }: { columnId: BoardColumnId; title: string; tasks: Task[]; now: number; dragId: string | null; setDragId: (id: string | null) => void; moveTask: (id: string, column: BoardColumnId, beforeId?: string) => void; openSchedule: (id: string) => void; openReminder: (id: string) => void; openDelegate: (id: string) => void; finishTask: (id: string) => void; }) {
+function BoardColumn({ columnId, title, tasks, now, dragId, setDragId, moveTask, openSchedule, openReminder, openDelegate, finishTask, matrixAssignments }: { columnId: BoardColumnId; title: string; tasks: Task[]; now: number; dragId: string | null; setDragId: (id: string | null) => void; moveTask: (id: string, column: BoardColumnId, beforeId?: string) => void; openSchedule: (id: string) => void; openReminder: (id: string) => void; openDelegate: (id: string) => void; finishTask: (id: string) => void; matrixAssignments: MatrixAssignments; }) {
   return <section className={`board-column column-${columnId}`} onDragOver={(event) => event.preventDefault()} onDrop={() => dragId && moveTask(dragId, columnId)}><div className="column-head"><strong>{title}</strong><span>{tasks.length}</span></div><div className="board-cards">{tasks.map((task) => {
-    const waiting = taskIsWaiting(task); const overdue = task.deadline !== null && task.deadline < now;
-    return <article className={`board-card project-${task.project} ${waiting ? 'is-waiting' : ''}`} key={task.id} draggable onDragStart={() => setDragId(task.id)} onDragEnd={() => setDragId(null)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); if (dragId && dragId !== task.id) moveTask(dragId, columnId, task.id); }}><div className="card-title">{task.title}</div><div className="card-meta">{projectLabel(task.project) && <b>{projectLabel(task.project)}</b>}{task.assignee && <span>→ {task.assignee}</span>}{waiting && <span className="wait-chip">ЖДУ</span>}</div>{task.deadline && <div className={`deadline-chip ${overdue ? 'overdue' : ''}`}>Дедлайн · {formatDateTime(task.deadline)}</div>}<div className="card-last">{lastStep(task)}</div><div className="card-actions">{columnId !== 'done' && <button onClick={() => openSchedule(task.id)}>В тетрадь</button>}{columnId !== 'done' && <button onClick={() => openReminder(task.id)}>Жду</button>}{columnId === 'delegated' && <button onClick={() => openDelegate(task.id)}>Кому / дедлайн</button>}{columnId !== 'done' && <button onClick={() => finishTask(task.id)}>Готово</button>}</div></article>;
+    const waiting = taskIsWaiting(task); const overdue = task.deadline !== null && task.deadline < now; const operational = columnId === 'today' && matrixAssignments[task.id] === 'urgent-not-important';
+    return <article className={`board-card project-${task.project} ${waiting ? 'is-waiting' : ''} ${operational ? 'is-operational' : ''}`} key={task.id} draggable onDragStart={() => setDragId(task.id)} onDragEnd={() => setDragId(null)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); if (dragId && dragId !== task.id) moveTask(dragId, columnId, task.id); }}><div className="card-title">{task.title}</div><div className="card-meta">{projectLabel(task.project) && <b>{projectLabel(task.project)}</b>}{operational && <span className="operation-chip">ОП</span>}{task.assignee && <span>→ {task.assignee}</span>}{waiting && <span className="wait-chip">ЖДУ</span>}</div>{task.deadline && <div className={`deadline-chip ${overdue ? 'overdue' : ''}`}>Дедлайн · {formatDateTime(task.deadline)}</div>}<div className="card-last">{lastStep(task)}</div><div className="card-actions">{columnId !== 'done' && <button onClick={() => openSchedule(task.id)}>В тетрадь</button>}{columnId !== 'done' && <button onClick={() => openReminder(task.id)}>Жду</button>}{columnId === 'delegated' && <button onClick={() => openDelegate(task.id)}>Кому / дедлайн</button>}{columnId !== 'done' && <button onClick={() => finishTask(task.id)}>Готово</button>}</div></article>;
   })}</div></section>;
 }
 
