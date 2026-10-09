@@ -79,7 +79,7 @@ state=await page.evaluate(()=>JSON.parse(localStorage.getItem('today-cockpit-v2'
 assert(Boolean(state.tasks.find(t=>t.id==='t4').deadline),'deadline save failed');
 
 // Wait screen uses new flat rows.
-await page.getByRole('button',{name:/Жду/}).click();
+await page.locator('.page-switch button').filter({hasText:'Жду'}).first().click();
 await page.waitForSelector('.wait-page-v2');
 assert(await page.locator('.wait-row').count()>=2,'new wait rows missing');
 assert(await page.locator('.person-task').count()===0,'legacy wait cards still rendered');
