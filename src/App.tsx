@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardColumnId, CityId, ColumnId, ProjectId, Store, Task, TaskStep } from './types';
 import { defaultColumnTitles, demo, STORAGE_KEY } from './data';
-import { MATRIX_ORIGIN_STORAGE_KEY, MATRIX_STORAGE_KEY, MatrixPage, loadMatrixAssignments, loadMatrixOrigins, type MatrixAssignments, type MatrixCityFilter, type MatrixOrigins, type MatrixQuadrant } from './matrix';
+import { MATRIX_ORIGIN_STORAGE_KEY, MATRIX_STORAGE_KEY, MATRIX_TRANSFERRED_STORAGE_KEY, MatrixPage, loadMatrixAssignments, loadMatrixOrigins, loadMatrixTransferred, type MatrixAssignments, type MatrixCityFilter, type MatrixOrigins, type MatrixQuadrant, type MatrixTransferred } from './matrix';
 
 const BOARD_COLUMNS: BoardColumnId[] = ['today', 'week', 'month', 'delegated', 'done'];
 const DAY = 86_400_000;
@@ -133,6 +133,12 @@ function App() {
   const [matrixCity, setMatrixCity] = useState<MatrixCityFilter>('all');
   const [matrixAssignments, setMatrixAssignments] = useState<MatrixAssignments>(loadMatrixAssignments);
   const [matrixOrigins, setMatrixOrigins] = useState<MatrixOrigins>(loadMatrixOrigins);
+  const [matrixTransferred, setMatrixTransferred] = useState<MatrixTransferred>(() => {
+    const loaded = loadMatrixTransferred();
+    if (localStorage.getItem(MATRIX_TRANSFERRED_STORAGE_KEY) !== null) return loaded;
+    const oldAssignments = loadMatrixAssignments();
+    return Object.fromEntries(Object.keys(oldAssignments).map((id) => [id, true]));
+  });
   const [now, setNow] = useState(Date.now());
   const [dragBoardId, setDragBoardId] = useState<string | null>(null);
   const [dragNotebookId, setDragNotebookId] = useState<string | null>(null);
@@ -150,6 +156,7 @@ function App() {
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(store)), [store]);
   useEffect(() => localStorage.setItem(MATRIX_STORAGE_KEY, JSON.stringify(matrixAssignments)), [matrixAssignments]);
   useEffect(() => localStorage.setItem(MATRIX_ORIGIN_STORAGE_KEY, JSON.stringify(matrixOrigins)), [matrixOrigins]);
+  useEffect(() => localStorage.setItem(MATRIX_TRANSFERRED_STORAGE_KEY, JSON.stringify(matrixTransferred)), [matrixTransferred]);
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(timer); }, []);
   useEffect(() => { if (quickOpen) window.setTimeout(() => quickRef.current?.focus(), 0); }, [quickOpen]);
 
@@ -220,30 +227,18 @@ function App() {
       delete next[taskId];
       return next;
     });
-  };
-
-  const restoreMatrixAssignment = (taskId: string) => {
-    const origin = matrixOrigins[taskId];
-    if (origin) {
-      setStore((current) => ({
-        ...current,
-        tasks: current.tasks.map((task) => task.id === taskId ? {
-          ...task,
-          columnId: origin.columnId,
-          boardOrder: origin.boardOrder,
-          inNotebook: origin.inNotebook,
-          notebookOrder: origin.notebookOrder,
-          notebookAt: origin.notebookAt,
-          notebookCompleted: origin.notebookCompleted,
-        } : task),
-      }));
-    }
-    discardMatrixAssignment(taskId);
+    setMatrixTransferred((current) => {
+      if (!current[taskId]) return current;
+      const next = { ...current };
+      delete next[taskId];
+      return next;
+    });
   };
 
   const assignMatrixTask = (taskId: string, quadrant: MatrixQuadrant) => {
     const snapshot = store.tasks.find((task) => task.id === taskId);
-    if (snapshot && !matrixOrigins[taskId]) {
+    if (!snapshot || snapshot.columnId !== 'pool' || snapshot.inNotebook || matrixTransferred[taskId]) return;
+    if (!matrixOrigins[taskId]) {
       setMatrixOrigins((current) => current[taskId] ? current : {
         ...current,
         [taskId]: {
@@ -257,31 +252,62 @@ function App() {
       });
     }
     setMatrixAssignments((current) => ({ ...current, [taskId]: quadrant }));
+  };
+
+  const transferMatrixQuadrant = (quadrant: MatrixQuadrant, taskIds: string[]) => {
+    const ids = new Set(taskIds);
+    if (!ids.size) return;
     setStore((current) => {
-      const moving = current.tasks.find((task) => task.id === taskId);
-      if (!moving || moving.columnId === 'done') return current;
-      if (moving.columnId === 'delegated') return current;
-      const targetColumn: ColumnId =
-        quadrant === 'important-not-urgent'
-          ? 'week'
-          : quadrant === 'not-urgent-not-important'
-            ? 'pool'
-            : 'today';
-      const targetOrder = nextBoardOrder(current.tasks, targetColumn, moving.city);
+      const counters = new Map<string, number>();
+      const nextOrder = (columnId: ColumnId, city: CityId) => {
+        const key = `${columnId}:${city}`;
+        if (!counters.has(key)) counters.set(key, nextBoardOrder(current.tasks, columnId, city));
+        const value = counters.get(key)!;
+        counters.set(key, value + 1);
+        return value;
+      };
       return {
         ...current,
-        activeTaskId: current.activeTaskId === taskId ? null : current.activeTaskId,
-        tasks: current.tasks.map((task) => task.id === taskId ? {
-          ...task,
-          columnId: targetColumn,
-          boardOrder: targetOrder,
-          inNotebook: false,
-          notebookAt: null,
-          notebookCompleted: false,
-          completedAt: null,
-        } : task),
+        tasks: current.tasks.map((task) => {
+          if (!ids.has(task.id) || task.columnId !== 'pool' || task.inNotebook) return task;
+          const targetColumn: ColumnId =
+            quadrant === 'important-not-urgent'
+              ? 'week'
+              : quadrant === 'not-urgent-not-important'
+                ? 'pool'
+                : 'today';
+          return {
+            ...task,
+            columnId: targetColumn,
+            boardOrder: nextOrder(targetColumn, task.city),
+            inNotebook: false,
+            notebookAt: null,
+            notebookCompleted: false,
+            completedAt: null,
+          };
+        }),
       };
     });
+    setMatrixTransferred((current) => {
+      const next = { ...current };
+      taskIds.forEach((id) => { next[id] = true; });
+      return next;
+    });
+    setMatrixOrigins((current) => {
+      const next = { ...current };
+      taskIds.forEach((id) => { delete next[id]; });
+      return next;
+    });
+  };
+
+  const deleteMatrixTask = (taskId: string) => {
+    setStore((current) => ({
+      ...current,
+      activeTaskId: current.activeTaskId === taskId ? null : current.activeTaskId,
+      tasks: current.tasks.filter((task) => task.id !== taskId),
+    }));
+    discardMatrixAssignment(taskId);
+    if (taskFocusId === taskId) setTaskFocusId(null);
   };
 
   const updateTask = (id: string, patch: Partial<Task>) => setStore((current) => ({ ...current, tasks: current.tasks.map((task) => task.id === id ? { ...task, ...patch } : task) }));
@@ -398,8 +424,8 @@ function App() {
     </header>
 
     {page === 'notebook' && <NotebookPage tasks={notebookReady} upcoming={notebookUpcoming} activeTaskId={store.activeTaskId} dueItems={dueItems} now={now} dragId={dragNotebookId} setDragId={setDragNotebookId} createTask={(title, project) => createTask(title, 'today', boardCity, project, true)} updateTask={updateTask} addStep={addStep} updateStep={updateStep} deleteStep={deleteStep} openTask={openTaskFocus} requestActivate={requestActivate} reorderNotebook={reorderNotebook} openReminder={setReminderTarget} moveToBoard={moveNotebookToBoard} toggleCompleted={toggleNotebookCompleted} finishTask={finishTask} showNow={(id) => moveToNotebook(id, Date.now())} />}
-    {page === 'board' && <BoardPage store={store} city={boardCity} setCity={setBoardCity} now={now} dragId={dragBoardId} setDragId={setDragBoardId} createTask={createTask} moveTask={moveBoardTask} openSchedule={setScheduleTaskId} openReminder={(id) => setReminderTarget({ taskId: id })} openDelegate={setDelegateTaskId} openDeadline={setDeadlineTaskId} finishTask={finishTask} matrixAssignments={matrixAssignments} openMatrix={() => setPage('matrix')} />}
-    {page === 'matrix' && <MatrixPage tasks={store.tasks} city={matrixCity} setCity={setMatrixCity} assignments={matrixAssignments} assignTask={assignMatrixTask} clearAssignment={restoreMatrixAssignment} createTask={(title, city, project) => createTask(title, 'pool', city, project)} updateTask={updateTask} addStep={addStep} openTask={openTaskDetails} />}
+    {page === 'board' && <BoardPage store={store} city={boardCity} setCity={setBoardCity} now={now} dragId={dragBoardId} setDragId={setDragBoardId} createTask={createTask} moveTask={moveBoardTask} openSchedule={setScheduleTaskId} openReminder={(id) => setReminderTarget({ taskId: id })} openDelegate={setDelegateTaskId} openDeadline={setDeadlineTaskId} finishTask={finishTask} matrixAssignments={matrixAssignments} matrixTransferred={matrixTransferred} openMatrix={() => setPage('matrix')} />}
+    {page === 'matrix' && <MatrixPage tasks={store.tasks} city={matrixCity} setCity={setMatrixCity} assignments={matrixAssignments} transferred={matrixTransferred} assignTask={assignMatrixTask} clearAssignment={discardMatrixAssignment} transferQuadrant={transferMatrixQuadrant} createTask={(title, city, project) => createTask(title, 'pool', city, project)} updateTask={updateTask} addStep={addStep} deleteTask={deleteMatrixTask} openTask={openTaskDetails} />}
     {page === 'people' && <PeoplePage tasks={store.tasks} now={now} openReminder={setReminderTarget} />}
     {focusTask && <TaskFocusView task={focusTask} now={now} backLabel={page === 'matrix' ? '← Вернуться в Матрицу' : '← Вернуться в Тетрадь'} close={() => setTaskFocusId(null)} updateTask={updateTask} addStep={addStep} updateStep={updateStep} deleteStep={deleteStep} openReminder={setReminderTarget} toggleCompleted={toggleNotebookCompleted} finishTask={finishTask} />}
 
@@ -647,11 +673,11 @@ function TaskFocusView({ task, now, backLabel, close, updateTask, addStep, updat
   </div>;
 }
 
-function BoardPage({ store, city, setCity, now, dragId, setDragId, createTask, moveTask, openSchedule, openReminder, openDelegate, openDeadline, finishTask, matrixAssignments, openMatrix }: {
-  store: Store; city: CityId; setCity: (city: CityId) => void; now: number; dragId: string | null; setDragId: (id: string | null) => void; createTask: (title: string, column: ColumnId, city: CityId, project?: ProjectId) => string | null; moveTask: (id: string, column: BoardColumnId, beforeId?: string) => void; openSchedule: (id: string) => void; openReminder: (id: string) => void; openDelegate: (id: string) => void; openDeadline: (id: string) => void; finishTask: (id: string) => void; matrixAssignments: MatrixAssignments; openMatrix: () => void;
+function BoardPage({ store, city, setCity, now, dragId, setDragId, createTask, moveTask, openSchedule, openReminder, openDelegate, openDeadline, finishTask, matrixAssignments, matrixTransferred, openMatrix }: {
+  store: Store; city: CityId; setCity: (city: CityId) => void; now: number; dragId: string | null; setDragId: (id: string | null) => void; createTask: (title: string, column: ColumnId, city: CityId, project?: ProjectId) => string | null; moveTask: (id: string, column: BoardColumnId, beforeId?: string) => void; openSchedule: (id: string) => void; openReminder: (id: string) => void; openDelegate: (id: string) => void; openDeadline: (id: string) => void; finishTask: (id: string) => void; matrixAssignments: MatrixAssignments; matrixTransferred: MatrixTransferred; openMatrix: () => void;
 }) {
   const [title, setTitle] = useState(''); const [column, setColumn] = useState<BoardColumnId>('today'); const [project, setProject] = useState<ProjectId>('none');
-  const longboxCount = store.tasks.filter((task) => task.city === city && task.columnId === 'pool' && matrixAssignments[task.id] === 'not-urgent-not-important').length;
+  const longboxCount = store.tasks.filter((task) => task.city === city && task.columnId === 'pool' && matrixTransferred[task.id] && matrixAssignments[task.id] === 'not-urgent-not-important').length;
   const submit = () => { const id = createTask(title, column, city, project); if (!id) return; setTitle(''); if (column === 'delegated') window.setTimeout(() => openDelegate(id), 0); };
   return <main className="board-page v6-board"><div className="page-heading board-heading"><div><h1>Доска</h1><p>Отдельные горизонты СПб и Краснодара</p></div><div className="board-heading-actions"><button type="button" className="board-longbox-link" onClick={openMatrix}>Долгий ящик · {longboxCount}</button><div className="city-switch"><button className={city === 'spb' ? 'active' : ''} onClick={() => setCity('spb')}>Санкт-Петербург</button><button className={city === 'krasnodar' ? 'active' : ''} onClick={() => setCity('krasnodar')}>Краснодар</button></div></div></div>
     <form className="board-big-add" onSubmit={(event) => { event.preventDefault(); submit(); }}><span>＋</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Добавить задачу на доску..." /><ProjectPicker value={project} setValue={setProject} /><select value={column} onChange={(event) => setColumn(event.target.value as BoardColumnId)}>{BOARD_COLUMNS.filter((item) => item !== 'done').map((item) => <option value={item} key={item}>{store.columnTitles[item]}</option>)}</select><button>Добавить задачу</button></form>
