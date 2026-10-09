@@ -126,9 +126,9 @@
 /* Inbox */
 .matrix-inbox{
   border:1px solid var(--mx-line);
-  border-radius:17px;
+  border-radius:19px;
   overflow:hidden;
-  background:rgba(18,22,26,.94);
+  background:linear-gradient(180deg,rgba(27,31,36,.96),rgba(20,24,29,.96));
   box-shadow:
     0 16px 44px rgba(0,0,0,.13),
     inset 0 1px 0 rgba(255,255,255,.035);
@@ -301,8 +301,8 @@
 .qtag-not-urgent-not-important{color:#97b0d2;border-color:rgba(140,169,207,.22);background:rgba(140,169,207,.06)}
 .matrix-task-tools{display:flex;justify-content:flex-end;gap:3px}
 .matrix-task-tools button{
-  width:26px;
-  height:26px;
+  width:29px;
+  height:29px;
   padding:0;
   border:0;
   border-radius:7px;
@@ -366,7 +366,7 @@
   min-height:0;
   padding:13px 14px 12px;
   border:1px solid rgba(255,255,255,.11);
-  border-radius:18px;
+  border-radius:20px;
   display:grid;
   grid-template-rows:auto minmax(0,1fr) auto;
   gap:9px;
@@ -387,25 +387,25 @@
 .q-urgent-important{
   background:
     radial-gradient(450px 160px at 6% 0%,rgba(255,98,93,.12),transparent 70%),
-    #171314;
+    #1d1517;
   border-color:rgba(255,98,93,.28);
 }
 .q-urgent-not-important{
   background:
     radial-gradient(450px 160px at 6% 0%,rgba(255,177,59,.13),transparent 70%),
-    #181610;
+    #1d1912;
   border-color:rgba(255,177,59,.27);
 }
 .q-important-not-urgent{
   background:
     radial-gradient(450px 160px at 6% 0%,rgba(72,204,131,.115),transparent 70%),
-    #101814;
+    #121c16;
   border-color:rgba(72,204,131,.25);
 }
 .q-not-urgent-not-important{
   background:
     radial-gradient(450px 160px at 6% 0%,rgba(140,169,207,.11),transparent 70%),
-    #12171c;
+    #151b22;
   border-color:rgba(140,169,207,.24);
 }
 .matrix-quadrant.is-drag-over{
@@ -443,9 +443,9 @@
   place-items:center;
   border-radius:9px;
   background:rgba(255,255,255,.055);
-  font-size:14px;
+  font-size:15px;
 }
-.matrix-q-title strong{font-size:13px;color:#f0f3f0;white-space:nowrap}
+.matrix-q-title strong{font-size:14px;color:#f2f4f2;white-space:nowrap;letter-spacing:-.01em}
 .matrix-q-title b{
   min-width:20px;
   height:20px;
@@ -564,17 +564,22 @@
   cursor:pointer;
 }
 .matrix-transfer{
-  min-width:126px;
-  height:31px;
+  min-width:132px;
+  height:32px;
   padding:0 11px;
   border-radius:9px;
   border:1px solid rgba(255,255,255,.12);
-  background:rgba(255,255,255,.065);
-  color:#dce1de;
+  background:rgba(255,255,255,.07);
+  color:#e2e6e3;
   font-size:9px;
   font-weight:680;
   cursor:pointer;
 }
+
+.q-urgent-important .matrix-transfer{background:rgba(255,98,93,.09);border-color:rgba(255,98,93,.23);color:#f3c2bf}
+.q-urgent-not-important .matrix-transfer{background:rgba(255,177,59,.085);border-color:rgba(255,177,59,.22);color:#ead2a6}
+.q-important-not-urgent .matrix-transfer{background:rgba(72,204,131,.085);border-color:rgba(72,204,131,.21);color:#b9e3cb}
+.q-not-urgent-not-important .matrix-transfer{background:rgba(140,169,207,.085);border-color:rgba(140,169,207,.21);color:#c7d5e7}
 .matrix-transfer:hover:not(:disabled){
   background:rgba(255,255,255,.1);
   border-color:rgba(255,255,255,.2);
