@@ -1,0 +1,20 @@
+name: Encode matrix snapshot
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/matrix-encode.yml'
+permissions:
+  contents: write
+jobs:
+  encode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: base64 -w0 .github/tmp/matrix-current.png > .github/tmp/matrix-current.b64
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/tmp/matrix-current.b64
+          git commit -m "Add temporary encoded matrix snapshot"
+          git push
