@@ -1,0 +1,287 @@
+/* TODAY readable typography layer — imported last.
+   Goal: make the whole app easier to read without breaking the vivid visual style. */
+
+:root{
+  --type-font: "Inter", "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --type-text: #f4f7f4;
+  --type-body: #d7ded9;
+  --type-soft: #a7b1b8;
+  --type-muted: #828d96;
+}
+
+html, body, #root, .app-shell{
+  font-family: var(--type-font)!important;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 16px;
+  letter-spacing: -0.008em;
+}
+
+button, input, textarea, select{
+  font-family: var(--type-font)!important;
+  font-weight: 560;
+}
+
+/* Global headings */
+.page-heading h1,
+.notebook-titlebar h1,
+.nb5-heading h1,
+.management-heading h1,
+.matrix-heading h1{
+  font-size: 32px!important;
+  line-height: 1.02!important;
+  font-weight: 790!important;
+  letter-spacing: -0.052em!important;
+  color: var(--type-text)!important;
+}
+
+.page-heading p,
+.notebook-titlebar p,
+.nb5-heading p,
+.management-heading p,
+.matrix-heading p{
+  font-size: 12px!important;
+  line-height: 1.35!important;
+  font-weight: 540!important;
+  color: var(--type-muted)!important;
+}
+
+/* Top navigation */
+.brand strong{font-size: 13px!important; letter-spacing: .12em!important; font-weight: 800!important}
+.page-switch button{
+  font-size: 14px!important;
+  font-weight: 620!important;
+  letter-spacing: -0.018em!important;
+}
+.page-switch span{
+  font-size: 9px!important;
+  font-weight: 760!important;
+}
+.quick-button{font-size: 13px!important; font-weight: 720!important}
+.more-menu>summary,.matrix-more summary{font-weight: 800!important}
+
+/* Notebook */
+.nb5-list-head{
+  font-size: 9px!important;
+  font-weight: 760!important;
+  letter-spacing: .10em!important;
+}
+.nb5-number{font-size: 10px!important; font-weight: 720!important; color:#7f8b94!important}
+.nb5-title{
+  font-size: 16px!important;
+  line-height: 1.25!important;
+  font-weight: 720!important;
+  letter-spacing: -0.024em!important;
+  color: #eef3ee!important;
+}
+.nb5-current-action{
+  font-size: 14px!important;
+  line-height: 1.32!important;
+  font-weight: 560!important;
+  color: #d6ded8!important;
+}
+.nb5-created,
+.nb5-state,
+.nb5-state-wait,
+.nb5-state-focus,
+.nb5-state-done{
+  font-size: 10px!important;
+  font-weight: 760!important;
+  letter-spacing: .015em!important;
+}
+.nb5-inspector-title{
+  font-size: 21px!important;
+  line-height: 1.12!important;
+  font-weight: 780!important;
+}
+.nb5-inspector-current textarea,
+.nb5-inspector input,
+.nb5-inspector textarea{
+  font-size: 14px!important;
+  line-height: 1.45!important;
+  font-weight: 560!important;
+}
+
+/* Board */
+.v6-board .column-head strong{
+  font-size: 11px!important;
+  font-weight: 820!important;
+  letter-spacing: .09em!important;
+}
+.v6-board .column-head span{font-size: 9px!important; font-weight: 780!important}
+.v6-board .card-title{
+  font-size: 14px!important;
+  line-height: 1.28!important;
+  font-weight: 760!important;
+  letter-spacing: -0.025em!important;
+  color:#eef3ee!important;
+}
+.v6-board .card-last,
+.v6-board .card-meta,
+.board-deadline,
+.delegated-wait-line{
+  font-size: 11px!important;
+  line-height: 1.35!important;
+  font-weight: 560!important;
+}
+.v6-board .card-actions button,
+.board-big-add button,
+.board-big-add select,
+.board-big-add input{
+  font-size: 12px!important;
+  font-weight: 620!important;
+}
+
+/* Matrix */
+.matrix-section-head strong{
+  font-size: 13px!important;
+  font-weight: 780!important;
+}
+.matrix-section-head span,.matrix-section-head small{
+  font-size: 9px!important;
+  font-weight: 720!important;
+}
+.matrix-task-title{
+  font-size: 14px!important;
+  line-height: 1.25!important;
+  font-weight: 720!important;
+  letter-spacing: -0.025em!important;
+}
+.matrix-task-current{
+  font-size: 11px!important;
+  line-height: 1.32!important;
+  font-weight: 550!important;
+}
+.matrix-task-number,
+.matrix-number-chip{
+  font-weight: 800!important;
+  letter-spacing: -0.02em!important;
+}
+.matrix-task-number{font-size: 11px!important}
+.matrix-number-chip{font-size: 14px!important}
+.matrix-assignment,
+.matrix-task-status .deadline{
+  font-size: 9px!important;
+  font-weight: 760!important;
+}
+.matrix-q-title strong{
+  font-size: 15px!important;
+  font-weight: 820!important;
+  letter-spacing: -0.025em!important;
+}
+.matrix-quadrant header small{
+  font-size: 9px!important;
+  font-weight: 680!important;
+}
+.matrix-q-title b{font-size: 9px!important; font-weight: 800!important}
+.matrix-q-placeholder{font-size: 10px!important; font-weight: 600!important}
+.matrix-transfer{
+  font-size: 10px!important;
+  font-weight: 780!important;
+  letter-spacing: -0.01em!important;
+}
+.matrix-manual-disclosure summary,
+.matrix-manual input,
+.matrix-manual button{font-size: 9px!important; font-weight: 700!important}
+
+/* Waiting */
+.wait-person-head h2{
+  font-size: 15px!important;
+  line-height: 1.2!important;
+  font-weight: 790!important;
+}
+.wait-person-head span,
+.wait-person-head em{
+  font-size: 10px!important;
+  font-weight: 720!important;
+}
+.wait-row-title strong{
+  font-size: 14px!important;
+  line-height: 1.25!important;
+  font-weight: 760!important;
+}
+.wait-row-copy p{
+  font-size: 12px!important;
+  line-height: 1.38!important;
+  font-weight: 560!important;
+}
+.wait-row-copy small{
+  font-size: 10px!important;
+  line-height: 1.3!important;
+  font-weight: 650!important;
+}
+.wait-row-edit{font-size: 11px!important; font-weight: 720!important}
+
+/* Team */
+.team-person strong{
+  font-size: 16px!important;
+  line-height: 1.18!important;
+  font-weight: 790!important;
+}
+.team-role{
+  font-size: 12px!important;
+  line-height: 1.3!important;
+  font-weight: 560!important;
+}
+.team-signals b{font-size: 14px!important; font-weight: 820!important}
+.team-signals span{font-size: 10px!important; font-weight: 690!important}
+.team-card-actions button,
+.management-primary,
+.team-add-panel button,
+.team-add-panel input{
+  font-size: 12px!important;
+  font-weight: 650!important;
+}
+
+/* 1:1 */
+.member-tabs button,
+.oneonone-next,
+.ooo-section-title span,
+.metric-row label,
+.history-heading,
+.history-item summary{
+  font-size: 11px!important;
+  font-weight: 650!important;
+}
+.ooo-person-head h2,
+.ooo-section-title b{
+  font-size: 15px!important;
+  font-weight: 790!important;
+}
+.ooo-section textarea,
+.metric-row input,
+.history-item p{
+  font-size: 13px!important;
+  line-height: 1.45!important;
+  font-weight: 550!important;
+}
+.history-scores span{font-size: 10px!important; font-weight: 720!important}
+
+/* Modals and drawers */
+.modal-card h2,
+.longbox-head h2{
+  font-size: 22px!important;
+  font-weight: 800!important;
+  letter-spacing: -0.04em!important;
+}
+.modal-card p,
+.longbox-head p,
+.longbox-row small{
+  font-size: 11px!important;
+  line-height: 1.35!important;
+}
+.longbox-row strong{font-size: 14px!important; font-weight: 760!important}
+.longbox-actions button{font-size: 11px!important; font-weight: 680!important}
+
+/* Inputs: larger placeholders and less eye strain */
+::placeholder{
+  color: #6f7a83!important;
+  opacity: 1!important;
+  font-weight: 520!important;
+}
+
+@media(max-width: 860px){
+  .page-heading h1,.notebook-titlebar h1,.nb5-heading h1,.management-heading h1,.matrix-heading h1{font-size: 28px!important}
+  .nb5-title,.matrix-task-title,.v6-board .card-title{font-size: 14px!important}
+}
