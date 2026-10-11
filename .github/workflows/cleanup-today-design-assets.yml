@@ -1,0 +1,25 @@
+name: Cleanup TODAY design visual assets
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cleanup-today-design-assets.yml'
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove temporary visual assets
+        run: |
+          rm -f .github/tmp/today-design-contact.png
+          rm -f .github/tmp/today-design-contact.b64
+          rm -f .github/workflows/cleanup-today-design-assets.yml
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Remove temporary TODAY design visual assets"
+          git push
