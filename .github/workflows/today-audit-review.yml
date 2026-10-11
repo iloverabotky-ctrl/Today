@@ -1,0 +1,71 @@
+name: TODAY audit review
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/today-audit-review.yml'
+      - '.github/scripts/today_audit_review.mjs'
+permissions:
+  contents: write
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm install --no-save playwright-core
+      - name: Find Chrome
+        run: |
+          CHROME_PATH="$(which google-chrome || which chromium || which chromium-browser || true)"
+          test -n "$CHROME_PATH"
+          echo "CHROME_PATH=$CHROME_PATH" >> "$GITHUB_ENV"
+      - name: Start TODAY
+        run: |
+          npm run dev -- --host 127.0.0.1 > /tmp/today-vite.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/today-vite.log
+          exit 1
+      - name: Run audit
+        run: node .github/scripts/today_audit_review.mjs
+      - name: Build visual contact sheet
+        run: |
+          python -m pip install pillow
+          python - <<'PY'
+          from PIL import Image, ImageDraw
+          import os, glob
+          files=sorted(glob.glob('.github/tmp/audit/*.png'))
+          thumbs=[]
+          for f in files:
+              im=Image.open(f).convert('RGB')
+              im.thumbnail((700,430))
+              c=Image.new('RGB',(720,470),(8,11,14))
+              c.paste(im,((720-im.width)//2,28))
+              d=ImageDraw.Draw(c)
+              d.text((14,8),os.path.basename(f),(226,230,228))
+              thumbs.append(c)
+          rows=(len(thumbs)+1)//2
+          sheet=Image.new('RGB',(1440,rows*470),(8,11,14))
+          for i,im in enumerate(thumbs):
+              sheet.paste(im,((i%2)*720,(i//2)*470))
+          sheet.save('.github/tmp/audit/contact.png')
+          PY
+          base64 -w0 .github/tmp/audit/contact.png > .github/tmp/audit/contact.b64
+          base64 -w0 .github/tmp/audit/01_notebook.png > .github/tmp/audit/01_notebook.b64
+          base64 -w0 .github/tmp/audit/02_board.png > .github/tmp/audit/02_board.b64
+          base64 -w0 .github/tmp/audit/03_matrix.png > .github/tmp/audit/03_matrix.b64
+          base64 -w0 .github/tmp/audit/04_waiting.png > .github/tmp/audit/04_waiting.b64
+          base64 -w0 .github/tmp/audit/05_team.png > .github/tmp/audit/05_team.b64
+          base64 -w0 .github/tmp/audit/06_oneonone.png > .github/tmp/audit/06_oneonone.b64
+      - name: Commit audit assets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/tmp/audit/*.b64 .github/tmp/audit/review.json
+          git commit -m "Add temporary TODAY audit review assets"
+          git push
