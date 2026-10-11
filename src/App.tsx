@@ -182,7 +182,19 @@ function App() {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable;
-      if (event.key === 'Escape') { setQuickOpen(false); setReminderTarget(null); setDelegateTaskId(null); setScheduleTaskId(null); setDeadlineTaskId(null); setTaskFocusId(null); }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setQuickOpen(false);
+        setQuickText('');
+        setReminderTarget(null);
+        setDelegateTaskId(null);
+        setScheduleTaskId(null);
+        setDeadlineTaskId(null);
+        setTaskFocusId(null);
+        document.querySelectorAll<HTMLDetailsElement>('details[open]').forEach((item) => item.removeAttribute('open'));
+        window.dispatchEvent(new CustomEvent('today:escape'));
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         event.preventDefault(); setPage('notebook');
         window.setTimeout(() => {
@@ -492,6 +504,17 @@ function NotebookPage({ tasks, upcoming, activeTaskId, dueItems, now, dragId, se
   }, [tasks, selectedId]);
 
   useEffect(() => {
+    const onEscape = () => {
+      setSelectedId(null);
+      setNewTaskOpen(false);
+      setNewTask('');
+    };
+    window.addEventListener('today:escape', onEscape);
+    return () => window.removeEventListener('today:escape', onEscape);
+  }, []);
+
+
+  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable;
@@ -709,6 +732,12 @@ function BoardPage({ store, city, setCity, now, dragId, setDragId, createTask, m
   const [column, setColumn] = useState<BoardColumnId>('today');
   const [project, setProject] = useState<ProjectId>('none');
   const [longboxOpen, setLongboxOpen] = useState(false);
+  useEffect(() => {
+    const onEscape = () => setLongboxOpen(false);
+    window.addEventListener('today:escape', onEscape);
+    return () => window.removeEventListener('today:escape', onEscape);
+  }, []);
+
   const longboxTasks = store.tasks.filter((task) => task.city === city && task.columnId === 'pool' && matrixTransferred[task.id] && matrixAssignments[task.id] === 'not-urgent-not-important').sort((a, b) => a.boardOrder - b.boardOrder);
   const submit = () => { const id = createTask(title, column, city, project); if (!id) return; setTitle(''); if (column === 'delegated') window.setTimeout(() => openDelegate(id), 0); };
 
