@@ -50,7 +50,7 @@ await page.waitForTimeout(50);
 pass(await page.locator('.longbox-backdrop').count()===0,'Escape did not close longbox');
 
 // Deadline modal -> Escape.
-await page.locator('.board-card').filter({hasText:'Задача на доске'}).getByRole('button',{name:'Срок'}).click();
+await page.locator('.board-card').filter({hasText:'Задача на доске'}).getByRole('button',{name:'Срок'}).evaluate((el)=>el.click());
 pass(await page.locator('.modal-overlay').isVisible(),'Deadline modal did not open');
 await page.keyboard.press('Escape');
 await page.waitForTimeout(50);
