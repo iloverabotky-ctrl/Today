@@ -220,7 +220,6 @@ export function MatrixPage({
     'urgent-not-important': '',
     'not-urgent-not-important': '',
   });
-  const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newProject, setNewProject] = useState<ProjectId>('none');
   const [newCity, setNewCity] = useState<CityId>(city === 'krasnodar' ? 'krasnodar' : 'spb');
@@ -242,6 +241,18 @@ export function MatrixPage({
     const timer = window.setTimeout(() => setDeleted(null), 5000);
     return () => window.clearTimeout(timer);
   }, [deleted]);
+
+  useEffect(() => {
+    const onEscape = () => {
+      setSelectedId(null);
+      setDragId(null);
+      setDragOverQuadrant(null);
+      document.querySelectorAll<HTMLDetailsElement>('.matrix-page details[open]').forEach((item) => item.removeAttribute('open'));
+    };
+    window.addEventListener('today:escape', onEscape);
+    return () => window.removeEventListener('today:escape', onEscape);
+  }, []);
+
 
   const matrixTasks = useMemo(() => tasks
     .filter((task) =>
@@ -308,7 +319,6 @@ export function MatrixPage({
     const id = createTask(newTitle, newCity, newProject);
     if (!id) return;
     setNewTitle('');
-    setNewTaskOpen(false);
   };
 
   const remove = (task: Task) => {
@@ -345,18 +355,17 @@ export function MatrixPage({
     <section className="matrix-inbox">
       <div className="matrix-section-head">
         <div><strong>Входящие</strong><span>{inboxTasks.length}</span>{assignedCount > 0 && <small>{assignedCount} распределено</small>}</div>
-        <button type="button" className="matrix-inbox-add" onClick={() => setNewTaskOpen((value) => !value)}>＋</button>
+        <small className="matrix-capture-hint">Enter — добавить</small>
       </div>
 
-      {newTaskOpen && <form className="matrix-add" onSubmit={(event) => { event.preventDefault(); submitNew(); }}>
-        <input autoFocus value={newTitle} onChange={(event) => setNewTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setNewTaskOpen(false); }} placeholder="Новая задача..." />
+      <form className="matrix-add matrix-add-inline" onSubmit={(event) => { event.preventDefault(); submitNew(); }}>
+        <input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="Записать новую задачу..." aria-label="Новая задача во входящие" />
         <div className="matrix-project-picker">
           {(['none', 'pasta', 'kvep'] as ProjectId[]).map((project) => <button key={project} type="button" className={newProject === project ? 'active' : ''} onClick={() => setNewProject(project)}>{project === 'none' ? 'Без проекта' : projectLabel(project)}</button>)}
         </div>
         {city === 'all' && <select value={newCity} onChange={(event) => setNewCity(event.target.value as CityId)}><option value="spb">СПб</option><option value="krasnodar">Краснодар</option></select>}
-        <button className="matrix-add-submit">Enter</button>
-        <button type="button" className="matrix-add-close" onClick={() => setNewTaskOpen(false)}>×</button>
-      </form>}
+        <button className="matrix-add-submit">Добавить</button>
+      </form>
 
       <div className="matrix-task-list">
         {visibleInbox.length === 0
