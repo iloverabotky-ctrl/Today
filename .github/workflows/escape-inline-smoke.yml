@@ -31,3 +31,5 @@ jobs:
           cat /tmp/today-vite.log
           exit 1
       - run: node .github/scripts/escape_inline_smoke.mjs
+
+# rerun
