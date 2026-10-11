@@ -169,6 +169,19 @@ function renderOneOnOne(root: HTMLElement, memberId?: string) {
 
 export function initSafeManagementWorkspace() {
   saveTeam(loadTeam()); ensureRoot(); ensureNav(); syncDatalist();
+  window.addEventListener('today:escape', () => {
+    const root = document.getElementById(ROOT_ID) as HTMLElement | null;
+    if (!root || root.hidden) return;
+    const addPanel = root.querySelector<HTMLElement>('#safe-add-panel');
+    if (addPanel && !addPanel.hidden) {
+      addPanel.hidden = true;
+      const name = root.querySelector<HTMLInputElement>('#safe-name');
+      const role = root.querySelector<HTMLInputElement>('#safe-role');
+      if (name) name.value = '';
+      if (role) role.value = '';
+    }
+    root.querySelectorAll<HTMLDetailsElement>('details[open]').forEach((item) => item.removeAttribute('open'));
+  });
   document.addEventListener('click', (event) => {
     const el = event.target as HTMLElement;
     const navButton = el.closest<HTMLButtonElement>('.page-switch button');
