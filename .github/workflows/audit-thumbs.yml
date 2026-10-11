@@ -15,13 +15,15 @@ jobs:
           python -m pip install pillow
           python - <<'PY'
           from PIL import Image
-          import glob, os, base64
+          import glob, os, base64, io
           os.makedirs('.github/tmp/audit/thumbs', exist_ok=True)
-          for f in sorted(glob.glob('.github/tmp/audit/*.png')):
+          for f in sorted(glob.glob('.github/tmp/audit/*.b64')):
               name=os.path.splitext(os.path.basename(f))[0]
               if name=='contact':
                   continue
-              im=Image.open(f).convert('RGB')
+              with open(f,'r') as fh:
+                  raw=base64.b64decode(fh.read())
+              im=Image.open(io.BytesIO(raw)).convert('RGB')
               im.thumbnail((680,425))
               out=f'.github/tmp/audit/thumbs/{name}.jpg'
               im.save(out, quality=58, optimize=True)
@@ -36,4 +38,4 @@ jobs:
           git add .github/tmp/audit/thumbs/*.b64
           git commit -m "Add temporary audit thumbnail assets"
           git push
-# rerun after audit assets are on main
+# decode b64 assets and rerun
