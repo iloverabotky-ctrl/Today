@@ -1,0 +1,112 @@
+{
+  "results": [
+    {
+      "section": "Матрица",
+      "test": "Входящие открываются и задача видна",
+      "status": "pass",
+      "note": ""
+    },
+    {
+      "section": "Матрица",
+      "test": "Номера задач в квадратах отображаются",
+      "status": "pass",
+      "note": ""
+    },
+    {
+      "section": "Матрица",
+      "test": "Кнопка переноса показывает количество",
+      "status": "pass",
+      "note": "Перенести 1 →"
+    },
+    {
+      "section": "Доска",
+      "test": "Колонки Today/Week/Delegated рендерятся",
+      "status": "pass",
+      "note": ""
+    },
+    {
+      "section": "Доска",
+      "test": "Карточки задач видны",
+      "status": "pass",
+      "note": ""
+    },
+    {
+      "section": "Доска",
+      "test": "Долгий ящик доступен",
+      "status": "pass",
+      "note": ""
+    },
+    {
+      "section": "Тетрадь",
+      "test": "Список задач виден",
+      "status": "pass",
+      "note": ""
+    },
+    {
+      "section": "Тетрадь",
+      "test": "Активная задача подсвечена",
+      "status": "pass",
+      "note": ""
+    },
+    {
+      "section": "Жду",
+      "test": "Группы ожидания показываются",
+      "status": "pass",
+      "note": ""
+    },
+    {
+      "section": "Жду",
+      "test": "Просрочка имеет отдельное состояние",
+      "status": "pass",
+      "note": ""
+    },
+    {
+      "section": "Команда",
+      "test": "Карточки сотрудников видны",
+      "status": "pass",
+      "note": ""
+    },
+    {
+      "section": "Команда",
+      "test": "Добавление сотрудника доступно",
+      "status": "pass",
+      "note": ""
+    },
+    {
+      "section": "1:1",
+      "test": "Форма 1:1 открывается",
+      "status": "pass",
+      "note": ""
+    },
+    {
+      "section": "1:1",
+      "test": "История 1:1 есть отдельным блоком",
+      "status": "pass",
+      "note": ""
+    }
+  ],
+  "typography": [
+    {
+      "selector": ".page-switch button",
+      "fontSize": "14px",
+      "fontWeight": "620",
+      "lineHeight": "normal",
+      "color": "rgb(137, 147, 154)"
+    },
+    {
+      "selector": ".wait-row-title strong",
+      "fontSize": "14px",
+      "fontWeight": "760",
+      "lineHeight": "17.5px",
+      "color": "rgb(223, 228, 225)"
+    },
+    {
+      "selector": ".ooo-section textarea",
+      "fontSize": "13px",
+      "fontWeight": "550",
+      "lineHeight": "18.85px",
+      "color": "rgb(220, 226, 222)"
+    }
+  ],
+  "browserErrors": []
+}
