@@ -266,7 +266,6 @@ export function MatrixPage({
   }, [city, matrixKey, tasks]);
 
   const sessionOrder = sessions[city] || [];
-  const numberById = useMemo(() => new Map(sessionOrder.map((id, index) => [id, index + 1])), [sessionOrder]);
   const byId = useMemo(() => new Map(matrixTasks.map((task) => [task.id, task])), [matrixTasks]);
   const orderedTasks = useMemo(() => {
     const ordered = sessionOrder.map((id) => byId.get(id)).filter((task): task is Task => Boolean(task));
@@ -277,6 +276,7 @@ export function MatrixPage({
   // Important UX rule: assigning to a quadrant does NOT remove the task from this list.
   // It disappears only after the explicit Transfer action.
   const inboxTasks = orderedTasks;
+  const numberById = useMemo(() => new Map(orderedTasks.map((task, index) => [task.id, index + 1])), [orderedTasks]);
   const pageSize = 5;
   const totalPages = Math.max(1, Math.ceil(inboxTasks.length / pageSize));
   const safeInboxPage = Math.min(inboxPage, totalPages - 1);
@@ -295,7 +295,7 @@ export function MatrixPage({
   };
 
   const applyNumbers = (quadrant: MatrixQuadrant) => {
-    const byNumber = new Map(sessionOrder.map((id, index) => [index + 1, id]));
+    const byNumber = new Map(orderedTasks.map((task, index) => [index + 1, task.id]));
     const indexes = manual[quadrant].split(/[\s,;]+/).map((value) => Number(value.trim())).filter(Number.isInteger);
     [...new Set(indexes)].forEach((number) => {
       const id = byNumber.get(number);
@@ -422,20 +422,21 @@ export function MatrixPage({
             </div>
 
             <div className="matrix-q-footer">
-              <form className="matrix-manual" onSubmit={(event) => { event.preventDefault(); applyNumbers(quadrant.id); }}>
-                <input value={manual[quadrant.id]} onChange={(event) => setManual((current) => ({ ...current, [quadrant.id]: event.target.value }))} placeholder="Добавить №" />
-                <button>↵</button>
-              </form>
+              <details className="matrix-manual-disclosure">
+                <summary>＋ №</summary>
+                <form className="matrix-manual" onSubmit={(event) => { event.preventDefault(); applyNumbers(quadrant.id); }}>
+                  <input autoFocus value={manual[quadrant.id]} onChange={(event) => setManual((current) => ({ ...current, [quadrant.id]: event.target.value }))} placeholder="1, 4, 7" />
+                  <button>↵</button>
+                </form>
+              </details>
               <button type="button" className="matrix-transfer" disabled={assigned.length === 0} onClick={() => transferQuadrant(quadrant.id, ids)}>
-                Перенести {assigned.length || ''} → {quadrant.target}
+                Перенести {assigned.length || ''} →
               </button>
             </div>
           </section>;
         })}
       </div>
     </section>
-
-    <div className="matrix-footnote"><span>Задача остаётся во «Входящих», пока ты не нажмёшь «Перенести».</span><span>ПКМ по номеру — снять приоритет.</span></div>
 
     {selectedTask && <MatrixSheet task={selectedTask} number={numberById.get(selectedTask.id) || 0} close={() => setSelectedId(null)} openTask={openTask} />}
 
