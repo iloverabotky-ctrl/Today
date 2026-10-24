@@ -293,3 +293,148 @@
 @media(max-width:1180px){
   .weekly-board-grid{--weekly-col:175px}
 }
+
+
+/* 2026-10 board visual refresh */
+.weekly-board{
+  padding-top:26px!important;
+}
+.weekly-board .board-heading{
+  align-items:center!important;
+  margin-bottom:4px!important;
+}
+.weekly-board .board-heading h1{
+  font-size:28px!important;
+  letter-spacing:-.035em!important;
+}
+.weekly-board .board-heading p{
+  margin-top:4px!important;
+  color:#75818a!important;
+  font-size:10px!important;
+}
+.board-heading-actions{
+  gap:10px!important;
+}
+.week-range{
+  display:inline-flex;
+  align-items:center;
+  min-height:30px;
+  padding:0 11px!important;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;
+  background:rgba(255,255,255,.028);
+  color:#a7b0b6!important;
+  font-size:10px!important;
+  font-weight:620;
+  letter-spacing:-.01em;
+}
+.board-inbox-add{
+  min-height:52px!important;
+  margin:14px 0 14px!important;
+  border-radius:14px!important;
+}
+.weekly-board-grid{
+  --weekly-col:clamp(185px,calc((100vw - 110px)/6),220px);
+  gap:10px!important;
+}
+.weekly-board .board-column{
+  min-height:575px!important;
+  padding:9px!important;
+  border-radius:17px!important;
+  background:linear-gradient(180deg,#151b21 0%,#10151a 100%)!important;
+  border-color:rgba(255,255,255,.075)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.018)!important;
+}
+.weekly-board .board-column.is-current-day{
+  border-color:rgba(112,165,235,.48)!important;
+  background:
+    radial-gradient(360px 170px at 28% 0%,rgba(104,162,239,.13),transparent 68%),
+    linear-gradient(180deg,#18222d 0%,#10171e 100%)!important;
+  box-shadow:0 8px 28px rgba(0,0,0,.13),inset 0 1px 0 rgba(255,255,255,.025)!important;
+}
+.weekly-board .column-head{
+  min-height:58px!important;
+  padding:9px 7px 11px!important;
+  border-bottom:1px solid rgba(255,255,255,.055);
+  margin-bottom:8px;
+}
+.weekly-board .column-head strong{
+  font-size:16px!important;
+  font-weight:720!important;
+  letter-spacing:-.025em!important;
+}
+.weekly-board .column-head small{
+  display:inline-flex!important;
+  align-items:center;
+  min-height:20px;
+  margin-top:7px!important;
+  padding:0 7px;
+  border-radius:7px;
+  background:rgba(255,255,255,.035);
+  color:#8c979e!important;
+  font-size:9px!important;
+  font-weight:580;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+.weekly-board .is-current-day .column-head small{
+  background:rgba(94,153,231,.12);
+  color:#b8d4f5!important;
+}
+.weekly-board .column-head>span{
+  min-width:23px!important;
+  height:23px!important;
+  font-size:9px!important;
+}
+.weekly-board .board-cards{
+  gap:8px!important;
+}
+.weekly-board .board-card{
+  padding:11px!important;
+  border-radius:12px!important;
+  background:linear-gradient(180deg,#1b232a,#171e24)!important;
+  border-color:rgba(255,255,255,.068)!important;
+  box-shadow:0 1px 0 rgba(255,255,255,.018),0 5px 16px rgba(0,0,0,.08)!important;
+}
+.weekly-board .board-card:hover{
+  transform:translateY(-2px)!important;
+  background:linear-gradient(180deg,#202930,#1a2228)!important;
+  border-color:rgba(255,255,255,.13)!important;
+  box-shadow:0 12px 30px rgba(0,0,0,.20)!important;
+}
+.weekly-board .card-title{
+  font-size:12px!important;
+  font-weight:660!important;
+  line-height:1.42!important;
+  letter-spacing:-.008em!important;
+}
+.weekly-board .card-meta{
+  gap:6px!important;
+  margin-top:8px!important;
+}
+.weekly-board .card-meta b,
+.subtask-progress,
+.planned-time{
+  min-height:19px;
+  font-size:8px!important;
+}
+.weekly-board .card-last{
+  margin-top:8px!important;
+  color:#7a878f!important;
+  font-size:9px!important;
+}
+.weekly-board .card-actions{
+  margin-top:8px!important;
+}
+.weekly-board .card-actions button{
+  padding:5px 6px!important;
+  font-size:8px!important;
+}
+.weekly-scroll-hint{
+  padding-top:6px;
+  color:#66737c;
+  font-size:8px;
+}
+@media(max-width:1180px){
+  .weekly-board-grid{--weekly-col:185px}
+}
