@@ -279,8 +279,9 @@ rep(anchor,subsection,"subtask inspector section")
 
 # Inspector footer delegation + new board options
 rep(
-"      <button type="button" onClick={() => openReminder({ taskId: task.id, stepId: current?.id })}>◷ ЖДУ / напомнить</button>",
-"      <button type="button" onClick={() => openReminder({ taskId: task.id, stepId: current?.id })}>◷ Напомнить</button>\n      <button type="button" className="delegate" onClick={() => openDelegate(task.id)}>↗ Делегировать</button>",
+'''      <button type="button" onClick={() => openReminder({ taskId: task.id, stepId: current?.id })}>◷ ЖДУ / напомнить</button>''',
+'''      <button type="button" onClick={() => openReminder({ taskId: task.id, stepId: current?.id })}>◷ Напомнить</button>
+      <button type="button" className="delegate" onClick={() => openDelegate(task.id)}>↗ Делегировать</button>''',
 "inspector delegate")
 rep(
 '''<select defaultValue="" onChange={(event) => { if (event.target.value) moveToBoard(task.id, event.target.value as BoardColumnId); event.currentTarget.value = ''; }}><option value="">В доску →</option><option value="today">Сегодня</option><option value="week">Неделя</option><option value="month">Месяц</option><option value="delegated">Делегировано</option></select>''',
