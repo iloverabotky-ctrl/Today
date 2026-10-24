@@ -3,8 +3,14 @@ import type { BoardColumnId, CityId, ColumnId, ProjectId, Store, Task } from './
 export const STORAGE_KEY = 'today-cockpit-v2';
 
 export const defaultColumnTitles: Record<BoardColumnId, string> = {
-  today: 'Сегодня',
-  week: 'Неделя',
+  inbox: 'Входящие',
+  mon: 'Пн',
+  tue: 'Вт',
+  wed: 'Ср',
+  thu: 'Чт',
+  fri: 'Пт',
+  sat: 'Сб',
+  sun: 'Вс',
   month: 'Месяц',
   delegated: 'Делегировано команде',
   done: 'Готово',
@@ -42,10 +48,13 @@ const makeTask = (
     waitingPerson: '',
     remindAt: null,
   })),
+  subtasks: [],
   waitingPerson,
   returnAt,
   assignee: '',
   deadline: null,
+  plannedStart: null,
+  plannedEnd: null,
   project,
   city,
   createdAt: now - (boardOrder + 1) * HOUR,
@@ -56,22 +65,22 @@ export const demo: Store = {
   columnTitles: defaultColumnTitles,
   activeTaskId: 'kpi',
   tasks: [
-    makeTask('kpi', 'Поставить KPI Пасты', 'today', 0, true, 0, [
+    makeTask('kpi', 'Поставить KPI Пасты', 'sat', 0, true, 0, [
       { text: 'Написал Наталье задачу по постановке KPI', age: 3 * HOUR },
       { text: 'Зашёл в GPT и собрал основу KPI для ребят', age: 2 * HOUR },
       { text: 'Жду ОС от Наташи', age: 45 * 60 * 1000 },
     ], 'Наташа', now + DAY, 'pasta', 'spb'),
-    makeTask('market', 'Позвонить организатору Маркета у моря', 'today', 1, true, 1, [
+    makeTask('market', 'Позвонить организатору Маркета у моря', 'sat', 1, true, 1, [
       { text: 'Нашёл контакт организатора', age: 25 * 60 * 1000 },
     ], '', null, 'kvep', 'spb'),
-    makeTask('events', 'Разобрать мероприятия на сентябрь', 'today', 2, true, 2, [
+    makeTask('events', 'Разобрать мероприятия на сентябрь', 'sun', 0, false, 0, [
       { text: 'Собрал длинный список событий', age: 3 * DAY },
     ], '', null, 'kvep', 'spb'),
     makeTask('breakfasts', 'Собрать ОС по завтракам', 'delegated', 0, false, 0, [
       { text: 'Передал задачу команде', age: 5 * HOUR },
     ], 'Наташа', now + 3 * DAY, 'pasta', 'spb'),
     makeTask('suppliers', 'Проверить поставщиков на новый привоз', 'month', 0, false, 0, [], '', null, 'kvep', 'spb'),
-    makeTask('content', 'Сценарий следующего Reels Пасты', 'week', 0, false, 0, [], '', null, 'pasta', 'spb'),
+    makeTask('content', 'Сценарий следующего Reels Пасты', 'inbox', 0, false, 0, [], '', null, 'pasta', 'spb'),
     makeTask('idea', 'Идея: новый формат выездных продаж', 'pool', 0, false, 0, [], '', null, 'none', 'spb'),
   ],
 };
