@@ -809,7 +809,7 @@ function BoardPage({ store, city, setCity, now, dragId, setDragId, createTask, m
     return date;
   };
   const rangeEnd = new Date(weekStart); rangeEnd.setDate(rangeEnd.getDate() + 6);
-  const weekRange = `${weekStart.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', '')} — ${rangeEnd.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', '')}`;
+  const weekRange = `${weekStart.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })} — ${rangeEnd.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`;
   const submit = () => { const id = createTask(title, 'inbox', city, project); if (!id) return; setTitle(''); };
 
   return <main className="board-page v6-board weekly-board">
@@ -829,7 +829,8 @@ function BoardPage({ store, city, setCity, now, dragId, setDragId, createTask, m
       <div className="board-grid weekly-board-grid">{BOARD_COLUMNS.map((columnId) => {
         const tasks = store.tasks.filter((task) => !task.inNotebook && task.city === city && task.columnId === columnId).sort((a, b) => a.boardOrder - b.boardOrder);
         const date = dateForColumn(columnId);
-        const subtitle = date ? date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', '') : columnId === 'month' ? 'дальше горизонта недели' : columnId === 'delegated' ? 'у команды' : columnId === 'done' ? 'архив результата' : 'из Матрицы';
+        const isToday = columnId === dayColumnFromDate(new Date(now));
+        const subtitle = date ? `${isToday ? 'Сегодня · ' : ''}${date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}` : columnId === 'month' ? 'дальше горизонта недели' : columnId === 'delegated' ? 'у команды' : columnId === 'done' ? 'архив результата' : 'из Матрицы';
         return <BoardColumn key={columnId} columnId={columnId} title={store.columnTitles[columnId]} subtitle={subtitle} current={columnId === dayColumnFromDate(new Date(now))} tasks={tasks} now={now} dragId={dragId} setDragId={setDragId} moveTask={moveTask} openSchedule={openSchedule} openDelegate={openDelegate} openDeadline={openDeadline} openTime={openTime} finishTask={finishTask} matrixAssignments={matrixAssignments} />;
       })}</div>
     </div>
