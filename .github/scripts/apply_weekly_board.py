@@ -258,8 +258,8 @@ rep(
 
 # Meta priority
 rep(
-"<div className="nb5-inspector-meta"><span>{formatTaskCreated(task.createdAt)}</span>{projectLabel(task.project) && <span>{projectLabel(task.project)}</span>}<span>{ageLabel(lastTouched(task), now)}</span>{waitingPerson && <button type="button" onClick={() => openReminder({ taskId: task.id, stepId: current?.id })}>ЖДУ · {waitingPerson}</button>}</div>",
-"<div className="nb5-inspector-meta"><span>{formatTaskCreated(task.createdAt)}</span>{projectLabel(task.project) && <span>{projectLabel(task.project)}</span>}{priorityMeta(priority) && <span className={`priority-chip ${priorityMeta(priority)?.cls}`}>{priorityMeta(priority)?.label}</span>}<span>{ageLabel(lastTouched(task), now)}</span>{waitingPerson && <button type="button" onClick={() => openReminder({ taskId: task.id, stepId: current?.id })}>Напомнить · {waitingPerson}</button>}</div>",
+'''<div className="nb5-inspector-meta"><span>{formatTaskCreated(task.createdAt)}</span>{projectLabel(task.project) && <span>{projectLabel(task.project)}</span>}<span>{ageLabel(lastTouched(task), now)}</span>{waitingPerson && <button type="button" onClick={() => openReminder({ taskId: task.id, stepId: current?.id })}>ЖДУ · {waitingPerson}</button>}</div>''',
+'''<div className="nb5-inspector-meta"><span>{formatTaskCreated(task.createdAt)}</span>{projectLabel(task.project) && <span>{projectLabel(task.project)}</span>}{priorityMeta(priority) && <span className={`priority-chip ${priorityMeta(priority)?.cls}`}>{priorityMeta(priority)?.label}</span>}<span>{ageLabel(lastTouched(task), now)}</span>{waitingPerson && <button type="button" onClick={() => openReminder({ taskId: task.id, stepId: current?.id })}>Напомнить · {waitingPerson}</button>}</div>''',
 "inspector priority")
 
 # Insert subtasks before next form
@@ -283,8 +283,8 @@ rep(
 "      <button type="button" onClick={() => openReminder({ taskId: task.id, stepId: current?.id })}>◷ Напомнить</button>\n      <button type="button" className="delegate" onClick={() => openDelegate(task.id)}>↗ Делегировать</button>",
 "inspector delegate")
 rep(
-"<select defaultValue="" onChange={(event) => { if (event.target.value) moveToBoard(task.id, event.target.value as BoardColumnId); event.currentTarget.value = ''; }}><option value="">В доску →</option><option value="today">Сегодня</option><option value="week">Неделя</option><option value="month">Месяц</option><option value="delegated">Делегировано</option></select>",
-"<select defaultValue="" onChange={(event) => { if (event.target.value) moveToBoard(task.id, event.target.value as BoardColumnId); event.currentTarget.value = ''; }}><option value="">В доску →</option><option value="inbox">Входящие</option><option value="mon">Пн</option><option value="tue">Вт</option><option value="wed">Ср</option><option value="thu">Чт</option><option value="fri">Пт</option><option value="sat">Сб</option><option value="sun">Вс</option><option value="month">Месяц</option><option value="delegated">Делегировано</option></select>",
+'''<select defaultValue="" onChange={(event) => { if (event.target.value) moveToBoard(task.id, event.target.value as BoardColumnId); event.currentTarget.value = ''; }}><option value="">В доску →</option><option value="today">Сегодня</option><option value="week">Неделя</option><option value="month">Месяц</option><option value="delegated">Делегировано</option></select>''',
+'''<select defaultValue="" onChange={(event) => { if (event.target.value) moveToBoard(task.id, event.target.value as BoardColumnId); event.currentTarget.value = ''; }}><option value="">В доску →</option><option value="inbox">Входящие</option><option value="mon">Пн</option><option value="tue">Вт</option><option value="wed">Ср</option><option value="thu">Чт</option><option value="fri">Пт</option><option value="sat">Сб</option><option value="sun">Вс</option><option value="month">Месяц</option><option value="delegated">Делегировано</option></select>''',
 "inspector board options")
 
 # Replace BoardPage through PeoplePage
