@@ -11,6 +11,7 @@ import './notebook-v5-inspector-refine.css';
 import './matrix.css';
 import './today-design-system.css';
 import './today-reference-vivid.css';
+import './weekly-board.css';
 import './today-readable-type.css';
 import { initSafeManagementWorkspace } from './management-safe';
 
