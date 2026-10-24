@@ -1,4 +1,15 @@
-export type BoardColumnId = 'today' | 'week' | 'month' | 'delegated' | 'done';
+export type BoardColumnId =
+  | 'inbox'
+  | 'mon'
+  | 'tue'
+  | 'wed'
+  | 'thu'
+  | 'fri'
+  | 'sat'
+  | 'sun'
+  | 'month'
+  | 'delegated'
+  | 'done';
 export type ColumnId = BoardColumnId | 'pool';
 export type ProjectId = 'none' | 'pasta' | 'kvep';
 export type CityId = 'spb' | 'krasnodar';
@@ -11,6 +22,12 @@ export interface TaskStep {
   remindAt: number | null;
 }
 
+export interface TaskSubtask {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -21,10 +38,13 @@ export interface Task {
   notebookAt: number | null;
   notebookCompleted: boolean;
   steps: TaskStep[];
+  subtasks: TaskSubtask[];
   waitingPerson: string;
   returnAt: number | null;
   assignee: string;
   deadline: number | null;
+  plannedStart: number | null;
+  plannedEnd: number | null;
   project: ProjectId;
   city: CityId;
   createdAt: number;
