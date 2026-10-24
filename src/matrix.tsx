@@ -422,10 +422,13 @@ export function MatrixPage({
                   key={task.id}
                   type="button"
                   className="matrix-number-chip"
-                  data-title={task.title}
+                  title={task.title}
                   onClick={() => setSelectedId(task.id)}
                   onContextMenu={(event) => { event.preventDefault(); clearAssignment(task.id); }}
-                >{numberById.get(task.id)}</button>)}
+                >
+                  <span className="matrix-number-chip-index">№ {numberById.get(task.id)}</span>
+                  <span className="matrix-number-chip-title">{task.title}</span>
+                </button>)}
                 {assigned.length === 0 && <span className="matrix-q-placeholder">{dragId ? 'Отпусти здесь' : 'Перетащи задачу'}</span>}
               </div>
             </div>
