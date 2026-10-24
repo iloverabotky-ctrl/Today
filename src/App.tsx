@@ -913,7 +913,7 @@ function DelegatedPage({ tasks, now, openDelegate }: { tasks: Task[]; now: numbe
   </main>;
 }
 
-function ReminderModal(function ReminderModal({ task, step, teamNames, close, save, clear }: { task: Task; step: TaskStep | null; teamNames: string[]; close: () => void; save: (person: string, at: number | null) => void; clear: () => void }) {
+function ReminderModal({ task, step, teamNames, close, save, clear }: { task: Task; step: TaskStep | null; teamNames: string[]; close: () => void; save: (person: string, at: number | null) => void; clear: () => void }) {
   const [person, setPerson] = useState(step ? step.waitingPerson : (task.waitingPerson || (task.columnId === 'delegated' ? task.assignee : ''))); const [when, setWhen] = useState(toDateTimeLocal(step ? step.remindAt : (task.returnAt ?? (task.columnId === 'delegated' ? task.deadline : null))));
   const quick = (days: number, hour?: number) => { const date = new Date(); date.setDate(date.getDate() + days); if (hour !== undefined) date.setHours(hour, 0, 0, 0); setWhen(toDateTimeLocal(date.getTime())); };
   const delegationWait = !step && task.columnId === 'delegated' && Boolean(task.assignee.trim());
